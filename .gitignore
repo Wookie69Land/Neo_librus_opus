@@ -52,6 +52,7 @@ cache/
 
 # VS Code
 .vscode/
+.vs
 
 # JetBrains
 .idea/
