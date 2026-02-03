@@ -7,6 +7,9 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+
+from django.urls import reverse_lazy
+
 from typing import Any, Dict, Final, List
 
 import environ
@@ -25,6 +28,9 @@ ALLOWED_HOSTS: Final[List[str]] = env.list("ALLOWED_HOSTS", default=["localhost"
 
 # Application definition
 INSTALLED_APPS: Final[List[str]] = [
+    "unfold",
+    "unfold.contrib.filters",  # Optional: Adds nice filter UI
+    "unfold.contrib.forms",    # Optional: Adds nice form UI
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -94,3 +100,50 @@ DEFAULT_AUTO_FIELD: Final[str] = "django.db.models.BigAutoField"
 
 # Use custom user model from domain app
 AUTH_USER_MODEL: Final[str] = "domain.User"
+
+
+# UNFOLD Admin Panel Configuration
+UNFOLD = {
+    "SITE_TITLE": "Neo-Librus Admin",
+    "SITE_HEADER": "Neo-Librus",
+    "SITE_URL": "/",
+    # "SITE_ICON": lambda request: static("icon.svg"),  # optional
+    "SIDEBAR": {
+        "show_search": True,  # Search apps/models in sidebar
+        "show_all_applications": False,
+        "navigation": [
+            {
+                "title": "Library Management",
+                "separator": True,  # Adds a line before this section
+                "items": [
+                    {
+                        "title": "Books Catalog",
+                        "icon": "library_books",  # Material Icon name
+                        "link": reverse_lazy("admin:domain_book_changelist"),
+                    },
+                    {
+                        "title": "Loans & Returns",
+                        "icon": "bookmark_added",
+                        "link": reverse_lazy("admin:domain_loan_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": "Users & Access",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Users",
+                        "icon": "people",
+                        "link": reverse_lazy("admin:domain_user_changelist"),
+                    },
+                    {
+                        "title": "Groups",
+                        "icon": "groups",
+                        "link": reverse_lazy("admin:auth_group_changelist"),
+                    },
+                ],
+            },
+        ],
+    },
+}

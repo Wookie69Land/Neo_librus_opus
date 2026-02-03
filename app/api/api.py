@@ -11,7 +11,16 @@ from django.core.exceptions import PermissionDenied
 from django.http import JsonResponse
 from ninja import NinjaAPI
 
-api = NinjaAPI(title="Neo-Librus API")
+api = NinjaAPI(
+    title="Neo-Librus API",
+    version="0.1.0",
+    description=(
+        "Async Django + Ninja API for the Neo-Librus library backend.\n\n"
+        "Endpoints are documented with Pydantic schemas and use async ORM operations."
+    ),
+    docs_url="/docs",
+    openapi_url="/openapi.json",
+)
 
 
 @api.exception_handler(PermissionDenied)

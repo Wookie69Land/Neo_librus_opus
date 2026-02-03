@@ -33,6 +33,7 @@ dependencies = [
     "structlog>=24.0",              # Structured Logging
     "opentelemetry-api>=1.26",      # Tracing API
     "opentelemetry-sdk>=1.26",      # Tracing SDK
+    "django-unfold>=0.78.1",
 ]
 
 # 🛠 Development Dependencies (Local & CI/CD)

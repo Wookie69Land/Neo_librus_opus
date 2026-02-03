@@ -18,6 +18,8 @@ from app.domain.repository import AsyncRepository
 
 
 class BookOut(Schema):
+    """Output schema for a Book resource."""
+
     id: int
     title: str
     author: str
@@ -28,6 +30,8 @@ class BookOut(Schema):
 
 
 class BookIn(Schema):
+    """Input/validation schema for creating/updating a Book."""
+
     title: str
     author: str
     isbn: str | None = None
@@ -37,8 +41,7 @@ class BookIn(Schema):
 class HasPerm:  # pragma: no cover - trivial security wrapper
     """Ninja dependency that requires specific Django permissions.
 
-    Usage::
-
+    Usage:
         Depends(HasPerm(["domain.add_book"]))
     """
 
@@ -54,11 +57,11 @@ class HasPerm:  # pragma: no cover - trivial security wrapper
         return True
 
 
-router = Router()
+router = Router(tags=["Books"])
 repo = AsyncRepository(Book)
 
 
-@router.get("/books", response=List[BookOut])
+@router.get("/books", response=List[BookOut], summary="List books", description="Returns all books.")
 async def list_books(request: Any) -> List[BookOut]:
     """Return a list of all books. Public access."""
 
@@ -74,14 +77,16 @@ async def list_books(request: Any) -> List[BookOut]:
     }) for b in books]
 
 
-@router.post("/books", response=BookOut, auth=HttpBearer(), operation_id="create_book")
+@router.post(
+    "/books",
+    response=BookOut,
+    auth=HttpBearer(),
+    operation_id="create_book",
+    summary="Create book",
+    description="Create a new book (Librarians only).",
+)
 async def create_book(request: Any, payload: BookIn) -> BookOut:
-    """Create a new book. Requires `domain.add_book` permission.
-
-    Authentication is enforced by the dependency `HasPerm` which raises
-    ``PermissionDenied`` on failure; the API exception handler converts
-    that to a 403 response.
-    """
+    """Create a new book. Requires `domain.add_book` permission."""
 
     # Enforce permission
     HasPerm(["domain.add_book"])(request)
@@ -98,7 +103,7 @@ async def create_book(request: Any, payload: BookIn) -> BookOut:
     })
 
 
-@router.put("/books/{book_id}", response=BookOut)
+@router.put("/books/{book_id}", response=BookOut, summary="Update book")
 async def update_book(request: Any, book_id: int, payload: BookIn) -> BookOut:
     """Update a book. Requires `domain.change_book` permission."""
 
@@ -117,7 +122,7 @@ async def update_book(request: Any, book_id: int, payload: BookIn) -> BookOut:
     })
 
 
-@router.delete("/books/{book_id}")
+@router.delete("/books/{book_id}", summary="Delete book")
 async def delete_book(request: Any, book_id: int) -> dict[str, bool]:
     """Delete a book. Requires `domain.delete_book` permission."""
 

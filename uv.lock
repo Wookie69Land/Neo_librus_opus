@@ -357,6 +357,18 @@ wheels = [
 ]
 
 [[package]]
+name = "django-unfold"
+version = "0.78.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "django" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/47/ca/c1148935fd0753fb70ddad19b7b7180dd94eabd267024dd65611a2c4388f/django_unfold-0.78.1.tar.gz", hash = "sha256:1de8537f0037b48e84d72b30229259060140ac84fc30d79eb69b5c9de6c5e51d", size = 1109404, upload-time = "2026-02-03T10:11:08.838Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/79/0b/4dd387462f0d7e705c477da8c761303591fccd66f0a6b5d6ba2ddc0f7855/django_unfold-0.78.1-py3-none-any.whl", hash = "sha256:6b557030d3ad6c8275ecacb69260b03a7ed3de972cb2e60ef2dea6d3363d515c", size = 1224742, upload-time = "2026-02-03T10:11:07.057Z" },
+]
+
+[[package]]
 name = "docker"
 version = "7.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -914,6 +926,7 @@ dependencies = [
     { name = "django" },
     { name = "django-environ" },
     { name = "django-ninja" },
+    { name = "django-unfold" },
     { name = "gunicorn" },
     { name = "httpx" },
     { name = "langchain" },
@@ -948,6 +961,7 @@ requires-dist = [
     { name = "django", specifier = ">=5.1" },
     { name = "django-environ", specifier = ">=0.11" },
     { name = "django-ninja", specifier = ">=1.3" },
+    { name = "django-unfold", specifier = ">=0.78.1" },
     { name = "gunicorn", specifier = ">=23.0" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "langchain", specifier = ">=0.2" },
