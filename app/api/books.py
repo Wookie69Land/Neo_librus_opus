@@ -10,7 +10,6 @@ from typing import Any, List
 
 from django.core.exceptions import PermissionDenied
 from ninja import Router, Schema
-from ninja.security import HttpBearer
 
 from app.api.api import api
 from app.domain.models import Book
@@ -80,7 +79,6 @@ async def list_books(request: Any) -> List[BookOut]:
 @router.post(
     "/books",
     response=BookOut,
-    auth=HttpBearer(),
     operation_id="create_book",
     summary="Create book",
     description="Create a new book (Librarians only).",

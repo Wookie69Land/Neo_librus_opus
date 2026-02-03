@@ -22,6 +22,10 @@ api = NinjaAPI(
     openapi_url="/openapi.json",
 )
 
+# Import router modules so they register on import (side-effect registers routers)
+from . import books  # noqa: F401
+from . import loans  # noqa: F401
+
 
 @api.exception_handler(PermissionDenied)
 def permission_denied(request: Any, exc: PermissionDenied) -> JsonResponse:  # pragma: no cover - behaviour wrapper
