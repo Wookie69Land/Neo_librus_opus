@@ -75,7 +75,14 @@ ASGI_APPLICATION: Final[str] = "app.core.asgi.application"
 
 # Database
 DATABASES: Final[Dict[str, Any]] = {
-    "default": env.db("DATABASE_URL", default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}")
+    "default": {
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": env("MYSQL_DATABASE", default="librarius"),
+        "USER": env("MYSQL_USER", default="root"),
+        "PASSWORD": env("MYSQL_PASSWORD", default="password"),
+        "HOST": env("MYSQL_HOST", default="localhost"),
+        "PORT": env("MYSQL_PORT", default="3306"),
+    }
 }
 
 # Password validation
