@@ -105,8 +105,9 @@ STATIC_URL: Final[str] = "/static/"
 
 DEFAULT_AUTO_FIELD: Final[str] = "django.db.models.BigAutoField"
 
+
 # Use custom user model from domain app
-AUTH_USER_MODEL: Final[str] = "domain.User"
+AUTH_USER_MODEL: Final[str] = "domain.CustomUser"
 
 
 # UNFOLD Admin Panel Configuration
