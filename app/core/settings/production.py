@@ -1,4 +1,4 @@
-"""Production settings for Neo-Librus.
+"""Production settings for Librarius.
 
 This module hardens a few default options and reads production secrets
 from the environment.

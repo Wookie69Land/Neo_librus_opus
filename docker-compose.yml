@@ -1,10 +1,12 @@
-version: "3.9"
 services:
   web:
     build:
       context: .
       target: runner
-    command: python manage.py runserver 0.0.0.0:8000
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py shell -c \"from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.filter(username='admin').exists() or User.objects.create_superuser('admin', 'admin@example.com', 'admin')\" &&
+             python manage.py runserver 0.0.0.0:8000"
     ports:
       - "8000:8000"
     volumes:
@@ -13,18 +15,23 @@ services:
     environment:
       - DJANGO_SETTINGS_MODULE=app.core.settings.local
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   db:
     image: mysql:8.0
     environment:
       MYSQL_DATABASE: librarius
-      MYSQL_USER: root
-      MYSQL_PASSWORD: password
       MYSQL_ROOT_PASSWORD: password
     ports:
       - "3306:3306"
+    healthcheck:
+      test: "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD"
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   redis:
     image: redis:7

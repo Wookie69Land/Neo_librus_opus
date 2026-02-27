@@ -1,4 +1,4 @@
-"""Local (development) settings for Neo-Librus.
+"""Local (development) settings for Librarius.
 
 Sets `DEBUG = True` and uses the console email backend.
 """

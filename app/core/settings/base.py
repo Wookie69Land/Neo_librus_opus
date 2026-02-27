@@ -1,4 +1,4 @@
-"""Base Django settings for Neo-Librus.
+"""Base Django settings for Librarius.
 
 This module uses `django-environ` to read environment variables and defines
 the common settings shared by local and production configurations.
@@ -14,7 +14,7 @@ from typing import Any, Dict, Final, List
 
 import environ
 
-BASE_DIR: Final[Path] = Path(__file__).resolve().parent.parent.parent
+BASE_DIR: Final[Path] = Path(__file__).resolve().parent.parent.parent.parent
 
 # Load environment variables from a .env file if present.
 env: environ.Env = environ.Env()
@@ -73,14 +73,13 @@ TEMPLATES: Final[List[Dict[str, Any]]] = [
 WSGI_APPLICATION: Final[str] = "app.core.wsgi.application"
 ASGI_APPLICATION: Final[str] = "app.core.asgi.application"
 
-# Database
 DATABASES: Final[Dict[str, Any]] = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
         "NAME": env("MYSQL_DATABASE", default="librarius"),
         "USER": env("MYSQL_USER", default="root"),
         "PASSWORD": env("MYSQL_PASSWORD", default="password"),
-        "HOST": env("MYSQL_HOST", default="localhost"),
+        "HOST": env("MYSQL_HOST", default="db"),
         "PORT": env("MYSQL_PORT", default="3306"),
     }
 }
@@ -112,8 +111,8 @@ AUTH_USER_MODEL: Final[str] = "domain.CustomUser"
 
 # UNFOLD Admin Panel Configuration
 UNFOLD = {
-    "SITE_TITLE": "Neo-Librus Admin",
-    "SITE_HEADER": "Neo-Librus",
+    "SITE_TITLE": "Librarius Admin",
+    "SITE_HEADER": "Librarius Administration",
     "SITE_URL": "/",
     # "SITE_ICON": lambda request: static("icon.svg"),  # optional
     "SIDEBAR": {
@@ -132,7 +131,7 @@ UNFOLD = {
                     {
                         "title": "Loans & Returns",
                         "icon": "bookmark_added",
-                        "link": reverse_lazy("admin:domain_loan_changelist"),
+                        "link": reverse_lazy("admin:domain_reservation_changelist"),
                     },
                 ],
             },
@@ -143,7 +142,7 @@ UNFOLD = {
                     {
                         "title": "Users",
                         "icon": "people",
-                        "link": reverse_lazy("admin:domain_user_changelist"),
+                        "link": reverse_lazy("admin:domain_customuser_changelist"),
                     },
                     {
                         "title": "Groups",

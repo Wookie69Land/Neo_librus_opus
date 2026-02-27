@@ -1,4 +1,4 @@
-# Neo-Librus
+# Librarius
 
 A next-generation Library Management System powered by **Django 5 (Async)**, **Django Ninja**, and **LangGraph AI**.
 
@@ -21,4 +21,4 @@ A next-generation Library Management System powered by **Django 5 (Async)**, **D
 1. **Clone the repository**
    ```bash
    git clone <repo-url>
-   cd neo-librus
+   cd librarius
