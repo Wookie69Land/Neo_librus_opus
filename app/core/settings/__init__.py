@@ -1,4 +1,4 @@
-"""Settings package for Neo-Librus.
+"""Settings package for Librarius.
 
 This package contains environment-specific Django settings modules.
 """

@@ -1,23 +1,21 @@
-version: "3.9"
 services:
   web:
-    image: neo-librus:latest
-    command: gunicorn -k uvicorn.workers.UvicornWorker app.core.asgi:application -b 0.0.0.0:8000
-    environment:
-      - DJANGO_SETTINGS_MODULE=app.core.settings.production
+    build:
+      context: .
+      target: runner
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
     ports:
       - "8000:8000"
-    depends_on:
-      - db
-      - redis
-
-  db:
-    image: mysql:8.0
+    volumes:
+      - .:/app:rw
+      - /app/.venv
     environment:
-      MYSQL_DATABASE: librarius
-      MYSQL_USER: root
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}
-
-  redis:
-    image: redis:7-alpine
+      - DJANGO_SETTINGS_MODULE=app.core.settings.production
+      - MYSQL_DATABASE=librarius
+      - MYSQL_USER=librarius_lukas
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_HOST=87.106.60.122
+      - MYSQL_PORT=3306
+      - ALLOWED_HOSTS=librarius-api.nanys.pl,localhost,127.0.0.1

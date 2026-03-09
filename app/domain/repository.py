@@ -6,14 +6,14 @@ project's async-first policy.
 """
 from __future__ import annotations
 
-from typing import Any, Generic, List, Optional, Type, TypeVar
+from typing import Any, TypeVar
 
 from django.db import models
 
 ModelType = TypeVar("ModelType", bound=models.Model)
 
 
-class AsyncRepository(Generic[ModelType]):
+class AsyncRepository[ModelType]:
     """Generic asynchronous repository for a Django model.
 
     Example:
@@ -21,7 +21,7 @@ class AsyncRepository(Generic[ModelType]):
         books = await repo.get_all()
     """
 
-    def __init__(self, model: Type[ModelType]) -> None:
+    def __init__(self, model: type[ModelType]) -> None:
         """Initialize the repository with a Django model class.
 
         Args:
@@ -30,17 +30,17 @@ class AsyncRepository(Generic[ModelType]):
 
         self.model = model
 
-    async def get_all(self) -> List[ModelType]:
+    async def get_all(self) -> list[ModelType]:
         """Return all model instances as a list using async iteration.
 
         This method collects results into memory; consider streaming in
         production for large datasets.
         """
 
-        result: List[ModelType] = [item async for item in self.model.objects.all()]
+        result: list[ModelType] = [item async for item in self.model.objects.all()]
         return result
 
-    async def get_by_id(self, pk: Any) -> Optional[ModelType]:
+    async def get_by_id(self, pk: Any) -> ModelType | None:
         """Return a single model instance by primary key or ``None``.
 
         Uses :meth:`QuerySet.aget` to perform the lookup asynchronously.
@@ -61,7 +61,7 @@ class AsyncRepository(Generic[ModelType]):
         obj = await self.model.objects.acreate(**data)  # type: ignore[attr-defined]
         return obj
 
-    async def update(self, pk: Any, **data: Any) -> Optional[ModelType]:
+    async def update(self, pk: Any, **data: Any) -> ModelType | None:
         """Update fields on an instance and persist changes asynchronously.
 
         Returns the updated instance or ``None`` if not found.

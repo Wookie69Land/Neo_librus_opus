@@ -1,48 +1,78 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser, Book, Reservation, Edition
 
-# 1. Register Custom User
-# We use try/except to avoid "AlreadyRegistered" crashes during reloads
-try:
-    admin.site.register(CustomUser, UserAdmin)
-except admin.sites.AlreadyRegistered:
-    pass
+from .models import (
+    Author,
+    Book,
+    BookAuthor,
+    Library,
+    LibraryAdmin,
+    LibraryBook,
+    LibraryUser,
+    Reservation,
+    Role,
+    Status,
+)
 
-# 2. Register Book
+
+@admin.register(LibraryUser)
+class LibraryUserAdmin(UserAdmin):
+    list_display = (
+        'username', 'email', 'first_name', 'last_name', 'is_staff', 'region',
+        'updated_at'
+    )
+    fieldsets = UserAdmin.fieldsets + (
+        (None, {'fields': ('region',)}),
+    )
+    add_fieldsets = UserAdmin.add_fieldsets + (
+        (None, {'fields': ('region',)}),
+    )
+
 @admin.register(Book)
 class BookAdmin(admin.ModelAdmin):
-    list_display = ('title', 'author', 'get_isbn', 'get_available_copies')
-    search_fields = ('title', 'author', 'editions__isbn')
-    list_filter = ('created_at',)
+    list_display = ('title', 'isbn', 'publisher', 'publication_date', 'last_updated')
+    search_fields = ('title', 'isbn', 'publisher')
+    list_filter = ('publication_date', 'last_updated')
+    autocomplete_fields = ['authors']
 
-    @admin.display(description='ISBN')
-    def get_isbn(self, obj):
-        return ', '.join(edition.isbn for edition in obj.editions.all())
-
-    @admin.display(description='Available Copies')
-    def get_available_copies(self, obj):
-        return sum(edition.available_copies for edition in obj.editions.all())
-
-# 3. Register Reservation
 @admin.register(Reservation)
 class ReservationAdmin(admin.ModelAdmin):
-    # Updated field names to match your models.py:
-    # 'user' -> 'borrower'
-    # 'due_date' -> 'due_at'
-    list_display = ('user', 'edition', 'created_at', 'expires_at', 'is_active_display')
-    list_filter = ('expires_at',)
-    
-    # This enables the searchable dropdown for selecting Users and Books
-    autocomplete_fields = ['user', 'edition']
+    list_display = ('book', 'reader', 'library', 'status', 'start_time', 'end_time', 'updated_at')
+    list_filter = ('status', 'start_time', 'library')
+    autocomplete_fields = ['book', 'reader', 'librarian', 'library']
 
-    @admin.display(boolean=True, description='Active?')
-    def is_active_display(self, obj):
-        return obj.expires_at > timezone.now()
+@admin.register(Status)
+class StatusAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name')
 
-# Register Edition model
-@admin.register(Edition)
-class EditionAdmin(admin.ModelAdmin):
-    list_display = ('book', 'isbn', 'year', 'publisher', 'available_copies')
-    search_fields = ('isbn', 'book__title', 'publisher')
-    list_filter = ('year', 'publisher')
+@admin.register(Role)
+class RoleAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'added_at')
+
+@admin.register(Library)
+class LibraryModelAdmin(admin.ModelAdmin):
+    list_display = ('name', 'city', 'region', 'added_at', 'updated_at')
+    search_fields = ('name', 'city')
+    list_filter = ('region', 'city')
+
+@admin.register(Author)
+class AuthorAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name')
+    search_fields = ('name',)
+
+@admin.register(BookAuthor)
+class BookAuthorAdmin(admin.ModelAdmin):
+    list_display = ('book', 'author')
+    autocomplete_fields = ['book', 'author']
+
+@admin.register(LibraryBook)
+class LibraryBookAdmin(admin.ModelAdmin):
+    list_display = ('book', 'library', 'is_available', 'added_at')
+    list_filter = ('library', 'is_available')
+    autocomplete_fields = ['book', 'library']
+
+@admin.register(LibraryAdmin)
+class LibraryAdminAdmin(admin.ModelAdmin):
+    list_display = ('user', 'library', 'role', 'added_at')
+    list_filter = ('library', 'role')
+    autocomplete_fields = ['user', 'library']

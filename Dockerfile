@@ -34,6 +34,7 @@ WORKDIR /app
 # (Needed so Python can talk to MySQL when the app is actually running)
 RUN apt-get update && apt-get install -y \
     default-libmysqlclient-dev \
+    default-mysql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # 6. Copy the virtual environment from the Safe Zone

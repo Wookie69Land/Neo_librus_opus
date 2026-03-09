@@ -5,14 +5,11 @@ the common settings shared by local and production configurations.
 """
 from __future__ import annotations
 
-import os
 from pathlib import Path
-
-from django.urls import reverse_lazy
-
-from typing import Any, Dict, Final, List
+from typing import Any, Final
 
 import environ
+from django.urls import reverse_lazy
 
 BASE_DIR: Final[Path] = Path(__file__).resolve().parent.parent.parent.parent
 
@@ -24,10 +21,10 @@ env.read_env(str(BASE_DIR / ".env"))
 SECRET_KEY: Final[str] = env("SECRET_KEY", default="unsafe-secret-for-dev")
 DEBUG: Final[bool] = env.bool("DEBUG", default=False)
 
-ALLOWED_HOSTS: Final[List[str]] = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])  # type: ignore[arg-type]
+ALLOWED_HOSTS: Final[list[str]] = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])  # type: ignore[arg-type]
 
 # Application definition
-INSTALLED_APPS: Final[List[str]] = [
+INSTALLED_APPS: Final[list[str]] = [
     "unfold",
     "unfold.contrib.filters",  # Optional: Adds nice filter UI
     "unfold.contrib.forms",    # Optional: Adds nice form UI
@@ -42,7 +39,7 @@ INSTALLED_APPS: Final[List[str]] = [
     "app.domain.apps.DomainConfig",
 ]
 
-MIDDLEWARE: Final[List[str]] = [
+MIDDLEWARE: Final[list[str]] = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -54,7 +51,7 @@ MIDDLEWARE: Final[List[str]] = [
 
 ROOT_URLCONF: Final[str] = "app.core.urls"
 
-TEMPLATES: Final[List[Dict[str, Any]]] = [
+TEMPLATES: Final[list[dict[str, Any]]] = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
         "DIRS": [],
@@ -73,7 +70,7 @@ TEMPLATES: Final[List[Dict[str, Any]]] = [
 WSGI_APPLICATION: Final[str] = "app.core.wsgi.application"
 ASGI_APPLICATION: Final[str] = "app.core.asgi.application"
 
-DATABASES: Final[Dict[str, Any]] = {
+DATABASES: Final[dict[str, Any]] = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
         "NAME": env("MYSQL_DATABASE", default="librarius"),
@@ -85,7 +82,7 @@ DATABASES: Final[Dict[str, Any]] = {
 }
 
 # Password validation
-AUTH_PASSWORD_VALIDATORS: Final[List[Dict[str, str]]] = [
+AUTH_PASSWORD_VALIDATORS: Final[list[dict[str, str]]] = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
@@ -106,7 +103,7 @@ DEFAULT_AUTO_FIELD: Final[str] = "django.db.models.BigAutoField"
 
 
 # Use custom user model from domain app
-AUTH_USER_MODEL: Final[str] = "domain.CustomUser"
+AUTH_USER_MODEL: Final[str] = "domain.LibraryUser"
 
 
 # UNFOLD Admin Panel Configuration
@@ -142,7 +139,7 @@ UNFOLD = {
                     {
                         "title": "Users",
                         "icon": "people",
-                        "link": reverse_lazy("admin:domain_customuser_changelist"),
+                        "link": reverse_lazy("admin:domain_libraryuser_changelist"),
                     },
                     {
                         "title": "Groups",

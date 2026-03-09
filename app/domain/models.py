@@ -1,186 +1,217 @@
-"""Domain models for Librarius: custom User, Book, and Reservation.
-
-All models are standard Django models; async ORM operations are provided
-by the repository layer in `repository.py`.
-
-AbstractUser is Django's built-in user model that we extend with additional fields as needed.
-By default, it includes fields:
-- username
-- email
-- password
-- first_name
-- last_name
-- is_staff
-- is_active
-- date_joined
-- last_login
-We can add custom fields (e.g. bio) to store additional user information.
-"""
+"""Domain models for Librarius, updated to the new schema with English field names."""
 from __future__ import annotations
-
-from typing import Optional
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-from django.utils.timezone import now, timedelta
 from django.utils.translation import gettext_lazy as _
 
-class UKDCategory(models.Model):
-    """Represents a UKD category for library classification."""
 
-    symbol = models.CharField(max_length=10, verbose_name=_("Symbol"))
-    nazwa_dzialu = models.CharField(max_length=255, verbose_name=_("Nazwa działu"))
-    parent = models.ForeignKey(
-        "self", on_delete=models.SET_NULL, null=True, blank=True, related_name="subcategories",
-        verbose_name=_("Kategoria nadrzędna")
-    )
+class Status(models.Model):
+    """Model for reservation statuses."""
+    id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=50,
+                            unique=True,
+                            verbose_name=_("Status Name"))
 
     class Meta:
-        verbose_name = _("Kategoria UKD")
-        verbose_name_plural = _("Kategorie UKD")
+        verbose_name = _("Status")
+        verbose_name_plural = _("Statuses")
 
     def __str__(self):
-        return f"{self.symbol} - {self.nazwa_dzialu}"
+        return self.name
 
-class CustomUser(AbstractUser):
-    """Custom user model for Neo-Librus."""
-    bio = models.TextField(blank=True, null=True, verbose_name=_("Biografia"))
-    
+class LibraryUser(AbstractUser):
+    """
+    Custom user model for Librarius.
+
+    Inherits from Django's AbstractUser and adds a 'region' field.
+
+    Fields from AbstractUser:
+    - id (primary key)
+    - first_name
+    - last_name
+    - username (unique)
+    - password (hashed)
+    - is_superuser (boolean)
+    - email
+    - password (hashed)
+    - is_staff (boolean)
+    - is_active (boolean)
+    - date_joined (datetime)
+    - last_login (datetime)
+
+    Custom fields:
+    - region
+    """
+    region = models.CharField(max_length=100,
+                              blank=True,
+                              null=True,
+                              verbose_name=_("Region"))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Last Updated"))
+
     class Meta:
-        verbose_name = _("Użytkownik")
-        verbose_name_plural = _("Użytkownicy")
+        verbose_name = _("Library User")
+        verbose_name_plural = _("Library Users")
+
+class Role(models.Model):
+    """Model for user roles in a library."""
+    id = models.IntegerField(primary_key=True,
+                             verbose_name=_("Role ID"))
+    name = models.CharField(max_length=100,
+                            unique=True,
+                            verbose_name=_("Role Name"))
+    added_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Added At"))
+
+    class Meta:
+        verbose_name = _("Role")
+        verbose_name_plural = _("Roles")
+
+    def __str__(self):
+        return self.name
 
 class Library(models.Model):
-    """Represents a library branch."""
-    name = models.CharField(max_length=255, verbose_name=_("Nazwa biblioteki"))
-    description = models.TextField(blank=True, null=True, verbose_name=_("Opis biblioteki"))
-
+    """Represents a library."""
+    id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=255, verbose_name=_("Name"))
+    address = models.CharField(max_length=255, blank=True, null=True, verbose_name=_("Address"))
+    city = models.CharField(max_length=100, blank=True, null=True, verbose_name=_("City"))
+    phone = models.CharField(max_length=20, blank=True, null=True, verbose_name=_("Phone"))
+    email = models.EmailField(blank=True, null=True, verbose_name=_("Email"))
+    region = models.CharField(max_length=100, blank=True, null=True, verbose_name=_("Region"))
+    added_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Added At"))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Last Updated"))
 
     class Meta:
-        verbose_name = _("Biblioteka")
-        verbose_name_plural = _("Biblioteki")
+        verbose_name = _("Library")
+        verbose_name_plural = _("Libraries")
 
     def __str__(self):
         return self.name
 
-class Branch(models.Model):
-    """Represents a library branch."""
-    library = models.ForeignKey(Library, on_delete=models.CASCADE, related_name="branches"),
-    name = models.CharField(max_length=255, verbose_name=_("Nazwa oddziału"))
-    street = models.TextField(verbose_name=_("Ulica"))
-    city = models.CharField(max_length=255, verbose_name=_("Miasto"))
-    postal_code = models.CharField(max_length=20, verbose_name=_("Kod pocztowy"))
-    phone = models.CharField(max_length=20, verbose_name=_("Telefon"))
-    email = models.EmailField(verbose_name=_("Email"))
-    added_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Data dodania"))
-    additional_info = models.TextField(blank=True, null=True, verbose_name=_("Dodatkowe informacje"))
+class Author(models.Model):
+    """Represents an author of a book."""
+    id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=255, verbose_name=_("Name"))
 
     class Meta:
-        verbose_name = _("Oddział biblioteki")
-        verbose_name_plural = _("Oddziały biblioteki")
+        verbose_name = _("Author")
+        verbose_name_plural = _("Authors")
 
     def __str__(self):
         return self.name
-
-class LibrarianProfile(models.Model):
-    """Profile for librarians."""
-    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name="librarian_profile")
-    libraries = models.ManyToManyField(Library, related_name="librarians", verbose_name=_("Biblioteki"))
-
-    class Meta:
-        verbose_name = _("Profil bibliotekarza")
-        verbose_name_plural = _("Profile bibliotekarzy")
-
-    def __str__(self):
-        return f"Bibliotekarz: {self.user.username}"
-
-class AdminProfile(models.Model):
-    """Profile for system administrators."""
-    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name="admin_profile")
-
-    class Meta:
-        verbose_name = _("Profil administratora")
-        verbose_name_plural = _("Profile administratorów")
-
-    def __str__(self):
-        return f"Administrator: {self.user.username}"
 
 class Book(models.Model):
-    """Represents a library book.
-
-    Attributes:
-        title: The display title of the book.
-        author: The author string.
-        isbn: Optional ISBN identifier.
-        copies: Number of copies available.
-    """
-
-    title: str = models.CharField(max_length=255)
-    author: str = models.CharField(max_length=255)
-
-    ukd_categories = models.ManyToManyField(
-        UKDCategory, related_name="books", verbose_name=_("Kategorie UKD")
+    """Represents a book."""
+    id = models.AutoField(primary_key=True)
+    title = models.CharField(max_length=255, verbose_name=_("Title"))
+    isbn = models.CharField(
+        max_length=20, unique=True, blank=True, null=True, verbose_name=_("ISBN")
+    )
+    integration_source = models.SmallIntegerField(
+        default=0, verbose_name=_("Integration Source")
+    )
+    last_updated = models.DateTimeField(auto_now=True, verbose_name=_("Last Updated"))
+    data_source = models.CharField(
+        max_length=100, blank=True, null=True, verbose_name=_("Data Source")
+    )
+    google_id = models.CharField(
+        max_length=100, blank=True, null=True, db_index=True,
+        verbose_name=_("Google Books ID")
+    )
+    publisher = models.CharField(
+        max_length=255, blank=True, null=True, verbose_name=_("Publisher")
+    )
+    publication_date = models.DateField(
+        blank=True, null=True,
+        help_text=_("Format: YYYY-MM-DD"),
+        verbose_name=_("Publication Date")
+    )
+    description = models.TextField(blank=True, null=True, verbose_name=_("Description"))
+    page_count = models.PositiveIntegerField(
+        blank=True, null=True, verbose_name=_("Page Count")
+    )
+    print_type = models.CharField(
+        max_length=50, blank=True, null=True, verbose_name=_("Print Type")
+    )
+    category = models.CharField(
+        max_length=255, blank=True, null=True, verbose_name=_("Category")
+    )
+    cover_url = models.URLField(blank=True, null=True, verbose_name=_("Cover URL"))
+    language = models.CharField(
+        max_length=10, blank=True, null=True, verbose_name=_("Language")
+    )
+    authors = models.ManyToManyField(
+        Author, through='BookAuthor', related_name='books', verbose_name=_("Authors")
     )
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
     class Meta:
-        app_label = "domain"
-        ordering = ["title"]
-
-    def __str__(self) -> str:
-        return f"{self.title} by {self.author}"
-
-
-class Edition(models.Model):
-    """Represents a specific edition of a book."""
-    book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name="editions", verbose_name=_("Książka"))
-    isbn = models.CharField(max_length=32, verbose_name=_("ISBN"))
-    year = models.PositiveIntegerField(verbose_name=_("Rok wydania"))
-    publisher = models.CharField(max_length=255, verbose_name=_("Wydawnictwo"))
-    total_copies = models.PositiveIntegerField(verbose_name=_("Liczba egzemplarzy"))
-    available_copies = models.PositiveIntegerField(verbose_name=_("Dostępne egzemplarze"))
-    info = models.TextField(blank=True, null=True, verbose_name=_("Dodatkowe informacje"))
-
-    class Meta:
-        verbose_name = _("Edycja książki")
-        verbose_name_plural = _("Edycje książek")
+        verbose_name = _("Book")
+        verbose_name_plural = _("Books")
 
     def __str__(self):
-        return f"{self.isbn} ({self.year})"
+        return self.title
 
-    def reserve_copy(self):
-        if self.available_copies > 0:
-            self.available_copies -= 1
-            self.save()
-            return True
-        return False
-
-    def release_copy(self):
-        if self.available_copies < self.total_copies:
-            self.available_copies += 1
-            self.save()
-
-class Reservation(models.Model):
-    """Represents a reservation of a book edition by a user."""
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="reservations", verbose_name=_("Użytkownik"))
-    edition = models.ForeignKey(Edition, on_delete=models.CASCADE, related_name="reservations", verbose_name=_("Edycja książki"))
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Data utworzenia"))
-    expires_at = models.DateTimeField(verbose_name=_("Data wygaśnięcia"))
+class BookAuthor(models.Model):
+    """Through model for the many-to-many relationship between Book and Author."""
+    author = models.ForeignKey(Author, on_delete=models.CASCADE)
+    book = models.ForeignKey(Book, on_delete=models.CASCADE)
 
     class Meta:
-        verbose_name = _("Rezerwacja")
-        verbose_name_plural = _("Rezerwacje")
+        unique_together = ('author', 'book')
+        verbose_name = _("Book Author")
+        verbose_name_plural = _("Book Authors")
 
-    def save(self, *args, **kwargs):
-        if not self.pk:  # Only check availability on creation
-            if not self.edition.reserve_copy():
-                raise ValueError("Brak dostępnych egzemplarzy tej edycji.")
-            self.expires_at = now() + timedelta(hours=48)
-        super().save(*args, **kwargs)
+class LibraryBook(models.Model):
+    """Through model connecting Books and Libraries, indicating book availability."""
+    book = models.ForeignKey(Book, on_delete=models.CASCADE)
+    library = models.ForeignKey(Library, on_delete=models.CASCADE)
+    is_available = models.BooleanField(default=True, verbose_name=_("Is Available"))
+    added_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Added At"))
 
-    def delete(self, *args, **kwargs):
-        self.edition.release_copy()
-        super().delete(*args, **kwargs)
+    class Meta:
+        unique_together = ('book', 'library')
+        verbose_name = _("Book in Library")
+        verbose_name_plural = _("Books in Libraries")
 
+class Reservation(models.Model):
+    """Represents a book reservation."""
+    id = models.AutoField(primary_key=True)
+    status = models.ForeignKey(Status, on_delete=models.PROTECT, verbose_name=_("Status"))
+    start_time = models.DateTimeField(
+        auto_now_add=True, verbose_name=_("Reservation Start Time")
+    )
+    end_time = models.DateTimeField(
+        blank=True, null=True, verbose_name=_("Reservation End Time")
+    )
+    reader = models.ForeignKey(
+        LibraryUser, related_name='reservations_as_reader', on_delete=models.CASCADE,
+        verbose_name=_("Reader")
+    )
+    librarian = models.ForeignKey(
+        LibraryUser, related_name='reservations_as_librarian', blank=True,
+        null=True, on_delete=models.SET_NULL, verbose_name=_("Librarian")
+    )
+    library = models.ForeignKey(
+        Library, on_delete=models.CASCADE, verbose_name=_("Library")
+    )
+    book = models.ForeignKey(Book, on_delete=models.CASCADE, verbose_name=_("Book"))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Last Updated"))
+
+    class Meta:
+        verbose_name = _("Reservation")
+        verbose_name_plural = _("Reservations")
+
+    def __str__(self):
+        return f"Reservation {self.id} for '{self.book.title}'"
+
+class LibraryAdmin(models.Model):
+    """Through model for library administrators and their roles."""
+    library = models.ForeignKey(Library, on_delete=models.CASCADE)
+    user = models.ForeignKey(LibraryUser, on_delete=models.CASCADE)
+    role = models.ForeignKey(Role, on_delete=models.PROTECT)
+    added_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Added At"))
+
+    class Meta:
+        unique_together = ('library', 'user')
+        verbose_name = _("Library Administrator")
+        verbose_name_plural = _("Library Administrators")

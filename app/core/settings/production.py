@@ -7,9 +7,14 @@ from __future__ import annotations
 
 from typing import Final
 
+import environ
+
 from .base import *  # noqa: F401, F403
 
+env = environ.Env()
+
 DEBUG = False
+
 
 SENTRY_DSN: Final[str] = env("SENTRY_DSN", default="")
 
