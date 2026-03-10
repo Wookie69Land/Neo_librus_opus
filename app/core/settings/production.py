@@ -34,3 +34,5 @@ CSRF_COOKIE_SECURE = True
 # Placeholder AWS/S3 static/media storage settings
 AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME", default="")
 AWS_S3_REGION_NAME = env("AWS_S3_REGION_NAME", default="")
+
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1", "librarius-api.nanys"])
