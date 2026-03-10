@@ -3,12 +3,18 @@ from datetime import datetime
 from ninja import Schema
 
 
-class StatusSchema(Schema):
+class StatusSchemaOut(Schema):
     id: int
     name: str
 
-class RoleSchema(Schema):
+class StatusSchemaIn(Schema):
+    name: str
+
+class RoleSchemaOut(Schema):
     id: int
+    name: str
+
+class RoleSchemaIn(Schema):
     name: str
 
 class LibraryUserSchema(Schema):
@@ -33,8 +39,11 @@ class LoginSchema(Schema):
     login: str
     password: str
 
-class AuthorSchema(Schema):
+class AuthorSchemaOut(Schema):
     id: int
+    name: str
+
+class AuthorSchemaIn(Schema):
     name: str
 
 class BookSchemaOut(Schema):
@@ -46,11 +55,11 @@ class BookSchemaOut(Schema):
     page_count: int | None = None
     cover_url: str | None = None
     language: str | None = None
-    authors: list[AuthorSchema]
+    authors: list[AuthorSchemaOut]
 
 class BookSchemaIn(Schema):
     title: str
-    isbn: str | None = None
+    isbn: str
     publisher: str | None = None
     publication_date: datetime | None = None
     page_count: int | None = None
@@ -58,8 +67,16 @@ class BookSchemaIn(Schema):
     language: str | None = None
     author_ids: list[int]
 
-class LibrarySchema(Schema):
+class LibrarySchemaOut(Schema):
     id: int
+    name: str
+    address: str | None = None
+    city: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    region: str | None = None
+
+class LibrarySchemaIn(Schema):
     name: str
     address: str | None = None
     city: str | None = None
@@ -69,17 +86,17 @@ class LibrarySchema(Schema):
 
 class LibraryBookSchema(Schema):
     book: BookSchemaOut
-    library: LibrarySchema
+    library: LibrarySchemaOut
     is_available: bool
 
 class ReservationSchemaOut(Schema):
     id: int
-    status: StatusSchema
+    status: StatusSchemaOut
     start_time: datetime
     end_time: datetime | None = None
     reader: LibraryUserSchema
     librarian: LibraryUserSchema | None = None
-    library: LibrarySchema
+    library: LibrarySchemaOut
     book: BookSchemaOut
 
 class ReservationSchemaIn(Schema):

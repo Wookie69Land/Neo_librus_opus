@@ -1,7 +1,7 @@
 
 from ninja import Router
 
-from app.api.serializers import AuthorSchema, BookSchemaIn, BookSchemaOut
+from app.api.serializers import AuthorSchemaOut, BookSchemaIn, BookSchemaOut
 from app.domain.models import Author, Book, BookAuthor
 from app.domain.repositories import AuthorRepository, BookAuthorRepository, BookRepository
 
@@ -24,7 +24,7 @@ async def list_books(request):
             cover_url=book.cover_url,
             language=book.language,
             authors=[
-                AuthorSchema(**author.__dict__) async for author in book.authors.all()
+                AuthorSchemaOut(**author.__dict__) async for author in book.authors.all()
             ],
         )
         for book in books
@@ -63,7 +63,7 @@ async def get_book(request, book_id: int):
         cover_url=book.cover_url,
         language=book.language,
         authors=[
-            AuthorSchema(**author.__dict__) async for author in book.authors.all()
+            AuthorSchemaOut(**author.__dict__) async for author in book.authors.all()
         ]
     )
 

@@ -55,7 +55,7 @@ class LibraryUser(AbstractUser):
 
 class Role(models.Model):
     """Model for user roles in a library."""
-    id = models.IntegerField(primary_key=True,
+    id = models.AutoField(primary_key=True,
                              verbose_name=_("Role ID"))
     name = models.CharField(max_length=100,
                             unique=True,
@@ -105,7 +105,7 @@ class Book(models.Model):
     id = models.AutoField(primary_key=True)
     title = models.CharField(max_length=255, verbose_name=_("Title"))
     isbn = models.CharField(
-        max_length=20, unique=True, blank=True, null=True, verbose_name=_("ISBN")
+        max_length=20, unique=True, verbose_name=_("ISBN")
     )
     integration_source = models.SmallIntegerField(
         default=0, verbose_name=_("Integration Source")
