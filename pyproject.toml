@@ -17,16 +17,17 @@ dependencies = [
     "django-environ>=0.11",         # 12-Factor App Config
     "uvicorn[standard]>=0.30",      # ASGI Server
     "gunicorn>=23.0",               # Production Process Manager
-    "psycopg[binary]>=3.2",         # Async PostgreSQL Driver
     "pydantic>=2.8",                # Data Validation
     "pydantic-settings>=2.4",       # Settings Management
     "httpx>=0.27",                  # Async HTTP Client
     "mysqlclient>=2.1",              # MySQL database driver
+    "unidecode>=1.3",               # ASCII text transliteration
+    "idna>=3.0",               
+    "certifi>=2020.6.20",       
     # 🧠 AI & Logic
     "langgraph>=0.2",               # Stateful AI Workflows
     "langchain>=0.2",               # AI Tooling
     "langchain-openai>=0.1",        # OpenAI Integration
-    "langchain-postgres>=0.0.9",    # For AI Memory/Checkpoints
     # ⚡ Background Tasks
     "arq>=0.26",                    # Async Task Queue
     "redis>=5.0",                   # Redis Client
@@ -35,8 +36,17 @@ dependencies = [
     "opentelemetry-api>=1.26",      # Tracing API
     "opentelemetry-sdk>=1.26",      # Tracing SDK
     "django-unfold>=0.78.1",
+    "asgiref>=3.11",               # ASGI utilities
+    # 🧩 SQL Utilities
+    "sqlparse>=0.4.4",             # SQL utilities
+    "django-anymail>=14.0",       
+    "requests>=2.0",             
+    "urllib3>=1.26",            
+    "pydantic-core==2.41.5",
+    "typing-extensions>=4.0",
+    "typing-inspection<=0.4.2",
+    "annotated-types>=0.4",
 ]
-
 # 🛠 Development Dependencies (Local & CI/CD)
 [dependency-groups]
 dev = [

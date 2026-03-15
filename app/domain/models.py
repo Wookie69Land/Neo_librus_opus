@@ -20,6 +20,25 @@ class Status(models.Model):
     def __str__(self):
         return self.name
 
+class Voivodeship(models.IntegerChoices):
+    DOLNOSLASKIE = 1, _("dolnośląskie")
+    KUJAWSKO_POMORSKIE = 2, _("kujawsko-pomorskie")
+    LUBELSKIE = 3, _("lubelskie")
+    LUBUSKIE = 4, _("lubuskie")
+    LODZKIE = 5, _("łódzkie")
+    MALOPOLSKIE = 6, _("małopolskie")
+    MAZOWIECKIE = 7, _("mazowieckie")
+    OPOLSKIE = 8, _("opolskie")
+    PODKARPACKIE = 9, _("podkarpackie")
+    PODLASKIE = 10, _("podlaskie")
+    POMORSKIE = 11, _("pomorskie")
+    SLASKIE = 12, _("śląskie")
+    SWIETOKRZYSKIE = 13, _("świętokrzyskie")
+    WARMINSKO_MAZURSKIE = 14, _("warmińsko-mazurskie")
+    WIELKOPOLSKIE = 15, _("wielkopolskie")
+    ZACHODNIOPOMORSKIE = 16, _("zachodniopomorskie")
+
+
 class LibraryUser(AbstractUser):
     """
     Custom user model for Librarius.
@@ -43,10 +62,10 @@ class LibraryUser(AbstractUser):
     Custom fields:
     - region
     """
-    region = models.CharField(max_length=100,
-                              blank=True,
-                              null=True,
-                              verbose_name=_("Region"))
+    region = models.IntegerField(choices=Voivodeship.choices,
+                                 blank=True,
+                                 null=True,
+                                 verbose_name=_("Region"))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Last Updated"))
 
     class Meta:
@@ -77,7 +96,7 @@ class Library(models.Model):
     city = models.CharField(max_length=100, blank=True, null=True, verbose_name=_("City"))
     phone = models.CharField(max_length=20, blank=True, null=True, verbose_name=_("Phone"))
     email = models.EmailField(blank=True, null=True, verbose_name=_("Email"))
-    region = models.CharField(max_length=100, blank=True, null=True, verbose_name=_("Region"))
+    region = models.IntegerField(choices=Voivodeship.choices, blank=True, null=True, verbose_name=_("Region"))
     added_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Added At"))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Last Updated"))
 
@@ -215,3 +234,20 @@ class LibraryAdmin(models.Model):
         unique_together = ('library', 'user')
         verbose_name = _("Library Administrator")
         verbose_name_plural = _("Library Administrators")
+
+
+class SessionToken(models.Model):
+    """Model for storing user session tokens in the database."""
+    id = models.AutoField(primary_key=True)
+    key = models.CharField(max_length=40, unique=True)
+    user = models.OneToOneField(
+        LibraryUser, related_name='auth_token', on_delete=models.CASCADE, verbose_name=_("User")
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Created At"))
+
+    class Meta:
+        verbose_name = _("Session Token")
+        verbose_name_plural = _("Session Tokens")
+
+    def __str__(self):
+        return self.key

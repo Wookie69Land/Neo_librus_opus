@@ -37,6 +37,9 @@ INSTALLED_APPS: Final[list[str]] = [
 
     # Project apps
     "app.domain.apps.DomainConfig",
+
+    # Third-party apps
+    "anymail",
 ]
 
 MIDDLEWARE: Final[list[str]] = [
@@ -151,3 +154,13 @@ UNFOLD = {
         ],
     },
 }
+
+
+# Email Configuration (using Anymail for Mailgun)
+EMAIL_BACKEND = "anymail.backends.mailgun.EmailBackend"
+ANYMAIL = {
+    "MAILGUN_API_KEY": env("MAILGUN_API_KEY", default=""),
+    # For EU region, use "https://api.eu.mailgun.net/v3"
+    "MAILGUN_SENDER_DOMAIN": env("MAILGUN_SENDER_DOMAIN", default=None),
+}
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Librarius <no-reply@example.com>")

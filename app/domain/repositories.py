@@ -56,6 +56,12 @@ class LibraryAdminRepository(AsyncRepository[LibraryAdmin]):
     async def is_admin(self, user_id: int) -> bool:
         return await self.model.objects.filter(user_id=user_id).aexists()
 
+    async def get_admin_library_ids(self, user_id: int) -> list[int]:
+        return [
+            admin.library.id
+            async for admin in self.model.objects.filter(user_id=user_id)
+        ]
+
 
 class BookAuthorRepository(AsyncRepository[BookAuthor]):
     pass

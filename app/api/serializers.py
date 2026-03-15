@@ -1,7 +1,11 @@
 from datetime import datetime
+from django.core.validators import EmailValidator
+from ninja import Field, Schema
+from app.domain.models import Voivodeship
 
-from ninja import Schema
-
+region_description = "Region as an integer. Available choices:\\n" + "\\n".join(
+    [f"{choice.value} - {choice.label}" for choice in Voivodeship]
+)
 
 class StatusSchemaOut(Schema):
     id: int
@@ -20,20 +24,20 @@ class RoleSchemaIn(Schema):
 class LibraryUserSchema(Schema):
     id: int
     username: str
-    email: str
+    email: str = Field(..., description="User's email address.")
     first_name: str
     last_name: str
-    region: str | None = None
+    region: int | None = Field(None, description=region_description)
     is_active: bool
     date_joined: datetime
     last_login: datetime | None = None
 
 class RegisterSchema(Schema):
-    email: str
+    email: str = Field(..., description="A valid email address.")
     password: str
     first_name: str
     last_name: str
-    region: str | None = None
+    region: int | None = Field(None, description=region_description)
 
 class LoginSchema(Schema):
     login: str
@@ -74,7 +78,7 @@ class LibrarySchemaOut(Schema):
     city: str | None = None
     phone: str | None = None
     email: str | None = None
-    region: str | None = None
+    region: int | None = Field(None, description=region_description)
 
 class LibrarySchemaIn(Schema):
     name: str
@@ -82,7 +86,7 @@ class LibrarySchemaIn(Schema):
     city: str | None = None
     phone: str | None = None
     email: str | None = None
-    region: str | None = None
+    region: int | None = Field(None, description=region_description)
 
 class LibraryBookSchema(Schema):
     book: BookSchemaOut

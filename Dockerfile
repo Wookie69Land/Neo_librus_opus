@@ -2,51 +2,47 @@
 # Stage 1: Builder
 # ==========================================
 FROM python:3.12-slim AS builder
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
+# Install uv directly from official image (no curl, no PATH games)
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Optional: pin version for reproducibility (check latest at ghcr.io)
+# COPY --from=ghcr.io/astral-sh/uv:0.6.0 /uv /uvx /bin/
 
 WORKDIR /build
 
-# 1. Define the "Safe Zone" for the virtual environment
-ENV UV_PROJECT_ENVIRONMENT="/opt/venv"
-ENV UV_COMPILE_BYTECODE=1
-
-# 2. Install MySQL system dependencies FIRST
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     default-libmysqlclient-dev \
     build-essential \
     pkgconf \
     && rm -rf /var/lib/apt/lists/*
 
-# 3. Copy config files from ROOT
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock* ./
 
-# 4. Create the environment
-RUN uv sync --frozen --no-install-project
+RUN uv venv /opt/venv
 
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip sync pyproject.toml --no-cache-dir
 
 # ==========================================
-# Stage 2: Runner
+# Stage 2: Runner (your original runner stage)
 # ==========================================
 FROM python:3.12-slim AS runner
 WORKDIR /app
 
-# 5. Install runtime MySQL dependencies 
-# (Needed so Python can talk to MySQL when the app is actually running)
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     default-libmysqlclient-dev \
     default-mysql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# 6. Copy the virtual environment from the Safe Zone
 COPY --from=builder /opt/venv /opt/venv
 
-# 7. Activate the environment globally
 ENV PATH="/opt/venv/bin:$PATH"
 
-# 8. Copy the project code
 COPY . .
 
 EXPOSE 8000
-
-# 9. Start the server
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

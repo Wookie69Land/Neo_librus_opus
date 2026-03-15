@@ -12,6 +12,7 @@ from django.http import JsonResponse
 from ninja import NinjaAPI
 
 from . import auth, authors, books, libraries, reservations, roles, statuses
+from .security import BearerTokenAuth
 
 api = NinjaAPI(
     title="Librarius API",
@@ -22,6 +23,7 @@ api = NinjaAPI(
     ),
     docs_url="/docs",
     openapi_url="/openapi.json",
+    auth=BearerTokenAuth(),
 )
 
 api.add_router("/books", books.router)
