@@ -239,7 +239,7 @@ class LibraryAdmin(models.Model):
 class SessionToken(models.Model):
     """Model for storing user session tokens in the database."""
     id = models.AutoField(primary_key=True)
-    key = models.CharField(max_length=40, unique=True)
+    key = models.CharField(max_length=100, unique=True)
     user = models.OneToOneField(
         LibraryUser, related_name='auth_token', on_delete=models.CASCADE, verbose_name=_("User")
     )

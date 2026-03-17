@@ -43,6 +43,10 @@ class LoginSchema(Schema):
     login: str
     password: str
 
+class LogoutSchema(Schema):
+    user_id: int
+    token: str
+
 class AuthorSchemaOut(Schema):
     id: int
     name: str
