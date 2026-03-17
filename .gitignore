@@ -83,3 +83,4 @@ build/
 
 # Ignore instructions and local-only agent files
 INSTRUCTIONS.md
+DEPLOY.md
