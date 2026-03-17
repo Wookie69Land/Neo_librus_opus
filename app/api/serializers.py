@@ -109,3 +109,35 @@ class ReservationSchemaOut(Schema):
 class ReservationSchemaIn(Schema):
     library_id: int
     book_id: int
+
+class UserReservationSchemaOut(Schema):
+    id: int
+    status: StatusSchemaOut
+    start_time: datetime
+    end_time: datetime | None = None
+    library: LibrarySchemaOut
+    book: BookSchemaOut
+
+class LibraryAdminInfoSchema(Schema):
+    library: LibrarySchemaOut
+    role: RoleSchemaOut
+
+class UserDetailSchema(Schema):
+    id: int
+    username: str
+    email: str
+    first_name: str
+    last_name: str
+    region: int | None = None
+    is_active: bool
+    date_joined: datetime
+    last_login: datetime | None = None
+    library_roles: list[LibraryAdminInfoSchema]
+    active_reservations: list[UserReservationSchemaOut]
+
+class UserUpdateSchema(Schema):
+    email: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    region: int | None = None
+    password: str | None = None
