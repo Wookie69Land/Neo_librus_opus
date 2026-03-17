@@ -122,10 +122,15 @@ async def login(request, payload: LoginSchema):
     return 401, {"detail": "Invalid credentials"}
 
 
-@router.post("/logout", response={200: dict, 409: dict}, auth=None)
+@router.post("/logout", response={200: dict, 400: dict, 409: dict}, auth=None)
 async def logout(request, payload: LogoutSchema):
     try:
-        session = await SessionToken.objects.aget(user_id=payload.user_id)
+        user_id = int(payload.token.split("-")[0])
+    except (ValueError, IndexError):
+        return 400, {"detail": "Invalid token format"}
+
+    try:
+        session = await SessionToken.objects.aget(user_id=user_id)
         if session.key == payload.token:
             await session.adelete()
             return 200, {"detail": "Logout successful"}
