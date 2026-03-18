@@ -156,11 +156,20 @@ UNFOLD = {
 }
 
 
-# Email Configuration (using Anymail for Mailgun)
-EMAIL_BACKEND = "anymail.backends.mailgun.EmailBackend"
-ANYMAIL = {
-    "MAILGUN_API_KEY": env("MAILGUN_API_KEY", default=""),
-    # For EU region, use "https://api.eu.mailgun.net/v3"
-    "MAILGUN_SENDER_DOMAIN": env("MAILGUN_SENDER_DOMAIN", default=None),
-}
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Librarius <no-reply@example.com>")
+# Email Configuration (Gmail SMTP)
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+DEFAULT_FROM_EMAIL = env("EMAIL_HOST_USER", default="librarius.no.reply@gmail.com")
+
+# Mailgun Configuration (currently unused, kept for future reference)
+# EMAIL_BACKEND = "anymail.backends.mailgun.EmailBackend"
+# ANYMAIL = {
+#     "MAILGUN_API_KEY": env("MAILGUN_API_KEY", default=""),
+#     # For EU region, use "https://api.eu.mailgun.net/v3"
+#     "MAILGUN_SENDER_DOMAIN": env("MAILGUN_SENDER_DOMAIN", default=None),
+# }
+# DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Librarius <no-reply@example.com>")

@@ -1,8 +1,12 @@
 import re
 import secrets
+from smtplib import SMTPException
 
+from asgiref.sync import sync_to_async
+from django.conf import settings
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core.mail import send_mail
+from django.db import IntegrityError, transaction
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from ninja import Query, Router, Schema
@@ -49,35 +53,51 @@ async def generate_username(first_name, last_name):
         return f"{base_username}{max_number + 1}"
 
 
-@router.post("/register", response=LibraryUserSchema, auth=None)
+@router.post("/register", response={201: LibraryUserSchema, 409: dict, 500: dict}, auth=None)
 async def register(request, payload: RegisterSchema):
+    if await LibraryUser.objects.filter(email=payload.email).aexists():
+        return 409, {"detail": "A user with this email already exists."}
+
     username = await generate_username(payload.first_name, payload.last_name)
 
-    user = await user_repo.create(
-        username=username,
-        email=payload.email,
-        first_name=payload.first_name,
-        last_name=payload.last_name,
-        region=payload.region,
-        is_active=False,
-    )
-    user.set_password(payload.password)
-    await user.asave()
+    def _create_user_and_send_activation():
+        with transaction.atomic():
+            user = LibraryUser(
+                username=username,
+                email=payload.email,
+                first_name=payload.first_name,
+                last_name=payload.last_name,
+                region=payload.region,
+                is_active=False,
+            )
+            user.set_password(payload.password)
+            user.save()
 
-    # Send activation email
-    token = account_activation_token.make_token(user)
-    uid = urlsafe_base64_encode(force_bytes(user.pk))
-    activation_link = request.build_absolute_uri(f"/api/auth/activate?uid={uid}&token={token}")
-    
-    send_mail(
-        "Activate your account",
-        f"Please activate your account by clicking this link: {activation_link}",
-        'no-reply.librarius@gmail.com',
-        [user.email],
-        fail_silently=False,
-    )
+            token = account_activation_token.make_token(user)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            activation_link = request.build_absolute_uri(
+                f"/api/auth/activate?uid={uid}&token={token}"
+            )
 
-    return user
+            send_mail(
+                subject="Activate your Librarius account",
+                message=f"Please activate your account by clicking this link:\n\n{activation_link}",
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                fail_silently=False,
+            )
+            return user
+
+    try:
+        user = await sync_to_async(_create_user_and_send_activation)()
+    except IntegrityError:
+        return 409, {"detail": "A user with this email or username already exists."}
+    except (SMTPException, ConnectionError, OSError):
+        return 500, {"detail": "Unable to send activation email. Account was not created. Please try again later."}
+    except Exception:
+        return 500, {"detail": "An unexpected error occurred during registration. Please try again."}
+
+    return 201, user
 
 
 @router.get("/activate", auth=None)
