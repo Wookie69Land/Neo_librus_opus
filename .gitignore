@@ -84,3 +84,4 @@ build/
 # Ignore instructions and local-only agent files
 INSTRUCTIONS.md
 DEPLOY.md
+JWT_FRONTEND_GUIDE.md

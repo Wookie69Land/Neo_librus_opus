@@ -2,6 +2,8 @@ import re
 import secrets
 from smtplib import SMTPException
 
+import jwt
+
 from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
@@ -12,6 +14,7 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from ninja import Query, Router, Schema
 from unidecode import unidecode
 
+from app.api.jwt_utils import decode_token, encode_token
 from app.api.serializers import LibraryUserSchema, LoginSchema, LogoutSchema, RegisterSchema
 from app.domain.models import LibraryAdmin, LibraryUser, SessionToken
 from app.domain.repositories import LibraryAdminRepository, LibraryUserRepository
@@ -132,8 +135,20 @@ async def login(request, payload: LoginSchema):
             role_part = library_admin.role_id
             library_id_part = library_admin.library_id
 
-        # Build structured token: user_id-role-library_id-random_hex
-        token_key = f"{user.id}-{role_part}-{library_id_part}-{secrets.token_hex(20)}"
+        # Build JWT payload
+        payload = {
+            "sub": user.id,
+            "username": user.username,
+            "email": user.email,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "region": user.region,
+            "date_joined": user.date_joined.isoformat() if user.date_joined else None,
+            "role_id": role_part,
+            "library_id": library_id_part,
+            "jti": secrets.token_hex(16),
+        }
+        token_key = encode_token(payload)
         await SessionToken.objects.aupdate_or_create(
             user=user, defaults={"key": token_key}
         )
@@ -145,8 +160,9 @@ async def login(request, payload: LoginSchema):
 @router.post("/logout", response={200: dict, 400: dict, 409: dict}, auth=None)
 async def logout(request, payload: LogoutSchema):
     try:
-        user_id = int(payload.token.split("-")[0])
-    except (ValueError, IndexError):
+        claims = decode_token(payload.token)
+        user_id = int(claims["sub"])
+    except (jwt.PyJWTError, KeyError, ValueError):
         return 400, {"detail": "Invalid token format"}
 
     try:

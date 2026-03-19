@@ -1,5 +1,6 @@
 from ninja import Router
 
+from app.api.jwt_utils import decode_token
 from app.api.serializers import (
     LibraryUserSchema,
     UserDetailSchema,
@@ -11,13 +12,9 @@ router = Router(tags=["Users"])
 
 
 def _parse_token(session_token: SessionToken) -> tuple[int, int, int]:
-    """Extract (user_id, role_id, library_id) from the token key.
-
-    Token format: user_id-role_id-library_id-random_hex
-    role_id: 0 = no library role, 1 = library admin, 2 = library manager
-    """
-    parts = session_token.key.split("-")
-    return int(parts[0]), int(parts[1]), int(parts[2])
+    """Extract (user_id, role_id, library_id) from the JWT stored in the token key."""
+    claims = decode_token(session_token.key)
+    return int(claims["sub"]), int(claims["role_id"]), int(claims["library_id"])
 
 
 @router.get("/{user_id}", response={200: UserDetailSchema, 403: dict, 404: dict})
