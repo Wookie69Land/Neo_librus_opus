@@ -261,3 +261,24 @@ class SessionToken(models.Model):
 
     def __str__(self):
         return self.key
+
+
+class CyclicTaskReport(models.Model):
+    """Stores recent execution results for scheduled and manually triggered cyclic tasks."""
+
+    id = models.AutoField(primary_key=True)
+    task_name = models.CharField(max_length=100, db_index=True, verbose_name=_("Task Name"))
+    status = models.CharField(max_length=20, verbose_name=_("Status"))
+    started_at = models.DateTimeField(verbose_name=_("Started At"))
+    finished_at = models.DateTimeField(verbose_name=_("Finished At"))
+    duration_ms = models.PositiveIntegerField(default=0, verbose_name=_("Duration (ms)"))
+    payload = models.JSONField(default=dict, blank=True, verbose_name=_("Payload"))
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Created At"))
+
+    class Meta:
+        ordering = ["-started_at", "-id"]
+        verbose_name = _("Cyclic Task Report")
+        verbose_name_plural = _("Cyclic Task Reports")
+
+    def __str__(self) -> str:
+        return f"{self.task_name} [{self.status}]"

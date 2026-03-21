@@ -5,6 +5,7 @@ from .models import (
     Author,
     Book,
     BookAuthor,
+    CyclicTaskReport,
     Library,
     LibraryAdmin,
     LibraryBook,
@@ -76,3 +77,11 @@ class LibraryAdminAdmin(admin.ModelAdmin):
     list_display = ('user', 'library', 'role', 'added_at')
     list_filter = ('library', 'role')
     autocomplete_fields = ['user', 'library']
+
+
+@admin.register(CyclicTaskReport)
+class CyclicTaskReportAdmin(admin.ModelAdmin):
+    list_display = ('task_name', 'status', 'started_at', 'finished_at', 'duration_ms')
+    list_filter = ('task_name', 'status')
+    search_fields = ('task_name',)
+    readonly_fields = ('task_name', 'status', 'started_at', 'finished_at', 'duration_ms', 'payload', 'created_at')

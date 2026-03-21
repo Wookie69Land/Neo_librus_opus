@@ -18,4 +18,43 @@ services:
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}
       - MYSQL_HOST=87.106.60.122
       - MYSQL_PORT=3306
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DATABASE=0
+      - GOOGLE_BOOKS_API_KEY=${GOOGLE_BOOKS_API_KEY}
+      - GOOGLE_BOOKS_TIMEOUT=${GOOGLE_BOOKS_TIMEOUT:-15}
       - ALLOWED_HOSTS=librarius-api.nanys.pl,localhost,127.0.0.1
+      - TZ=Europe/Warsaw
+    depends_on:
+      redis:
+        condition: service_started
+
+  worker:
+    build:
+      context: .
+      target: runner
+    command: arq app.tasks.worker.WorkerSettings
+    volumes:
+      - .:/app:rw
+      - /app/.venv
+    environment:
+      - DJANGO_SETTINGS_MODULE=app.core.settings.production
+      - MYSQL_DATABASE=librarius
+      - MYSQL_USER=librarius_lukas
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_HOST=87.106.60.122
+      - MYSQL_PORT=3306
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DATABASE=0
+      - GOOGLE_BOOKS_API_KEY=${GOOGLE_BOOKS_API_KEY}
+      - GOOGLE_BOOKS_TIMEOUT=${GOOGLE_BOOKS_TIMEOUT:-15}
+      - ALLOWED_HOSTS=librarius-api.nanys.pl,localhost,127.0.0.1
+      - TZ=Europe/Warsaw
+    depends_on:
+      redis:
+        condition: service_started
+
+  redis:
+    image: redis:7
+    restart: unless-stopped

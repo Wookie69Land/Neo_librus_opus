@@ -19,13 +19,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY pyproject.toml uv.lock* ./
 
-RUN uv venv /opt/venv
-
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv
 ENV VIRTUAL_ENV=/opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip sync pyproject.toml --no-cache-dir
+    uv sync --frozen --no-dev --no-install-project --no-editable
 
 # ==========================================
 # Stage 2: Runner (your original runner stage)
@@ -36,6 +35,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     default-libmysqlclient-dev \
     default-mysql-client \
+    tzdata \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /opt/venv /opt/venv

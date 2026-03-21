@@ -104,6 +104,13 @@ STATIC_URL: Final[str] = "/static/"
 
 DEFAULT_AUTO_FIELD: Final[str] = "django.db.models.BigAutoField"
 
+REDIS_HOST: Final[str] = env("REDIS_HOST", default="redis")
+REDIS_PORT: Final[int] = env.int("REDIS_PORT", default=6379)
+REDIS_DATABASE: Final[int] = env.int("REDIS_DATABASE", default=0)
+GOOGLE_BOOKS_API_KEY: Final[str] = env("GOOGLE_BOOKS_API_KEY", default="")
+GOOGLE_BOOKS_TIMEOUT: Final[float] = env.float("GOOGLE_BOOKS_TIMEOUT", default=15.0)
+CYCLIC_TASK_REPORT_RETENTION: Final[int] = env.int("CYCLIC_TASK_REPORT_RETENTION", default=3)
+
 
 # Use custom user model from domain app
 AUTH_USER_MODEL: Final[str] = "domain.LibraryUser"

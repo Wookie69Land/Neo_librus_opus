@@ -19,6 +19,35 @@ services:
       - MYSQL_PASSWORD=password
       - MYSQL_HOST=db
       - MYSQL_PORT=3306
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DATABASE=0
+      - TZ=Europe/Warsaw
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  worker:
+    build:
+      context: .
+      target: runner
+    command: arq app.tasks.worker.WorkerSettings
+    volumes:
+      - .:/app:rw
+      - /app/.venv
+    environment:
+      - DJANGO_SETTINGS_MODULE=app.core.settings.local
+      - MYSQL_DATABASE=librarius
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=password
+      - MYSQL_HOST=db
+      - MYSQL_PORT=3306
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DATABASE=0
+      - TZ=Europe/Warsaw
     depends_on:
       db:
         condition: service_healthy
