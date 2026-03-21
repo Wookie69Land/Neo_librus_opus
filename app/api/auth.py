@@ -137,7 +137,7 @@ async def login(request, payload: LoginSchema):
 
         # Build JWT payload
         payload = {
-            "sub": user.id,
+            "sub": str(user.id),
             "username": user.username,
             "email": user.email,
             "first_name": user.first_name,
