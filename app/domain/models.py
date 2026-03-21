@@ -1,9 +1,13 @@
 """Domain models for Librarius, updated to the new schema with English field names."""
 from __future__ import annotations
 
+from typing import Any
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+
+from app.domain.isbn import normalise_isbn, validate_isbn
 
 
 class Status(models.Model):
@@ -124,7 +128,7 @@ class Book(models.Model):
     id = models.AutoField(primary_key=True)
     title = models.CharField(max_length=255, verbose_name=_("Title"))
     isbn = models.CharField(
-        max_length=20, unique=True, verbose_name=_("ISBN")
+        max_length=20, unique=True, verbose_name=_("ISBN"), validators=[validate_isbn]
     )
     integration_source = models.SmallIntegerField(
         default=0, verbose_name=_("Integration Source")
@@ -140,10 +144,8 @@ class Book(models.Model):
     publisher = models.CharField(
         max_length=255, blank=True, null=True, verbose_name=_("Publisher")
     )
-    publication_date = models.DateField(
-        blank=True, null=True,
-        help_text=_("Format: YYYY-MM-DD"),
-        verbose_name=_("Publication Date")
+    published_year = models.PositiveIntegerField(
+        blank=True, null=True, verbose_name=_("Published Year")
     )
     description = models.TextField(blank=True, null=True, verbose_name=_("Description"))
     page_count = models.PositiveIntegerField(
@@ -153,7 +155,7 @@ class Book(models.Model):
         max_length=50, blank=True, null=True, verbose_name=_("Print Type")
     )
     category = models.CharField(
-        max_length=255, blank=True, null=True, verbose_name=_("Category")
+        max_length=511, blank=True, null=True, verbose_name=_("Category")
     )
     cover_url = models.URLField(blank=True, null=True, verbose_name=_("Cover URL"))
     language = models.CharField(
@@ -166,6 +168,14 @@ class Book(models.Model):
     class Meta:
         verbose_name = _("Book")
         verbose_name_plural = _("Books")
+
+    def clean(self) -> None:
+        super().clean()
+        self.isbn = normalise_isbn(self.isbn)
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.title

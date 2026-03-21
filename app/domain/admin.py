@@ -30,9 +30,9 @@ class LibraryUserAdmin(UserAdmin):
 
 @admin.register(Book)
 class BookAdmin(admin.ModelAdmin):
-    list_display = ('title', 'isbn', 'publisher', 'publication_date', 'last_updated')
+    list_display = ('title', 'isbn', 'publisher', 'published_year', 'last_updated')
     search_fields = ('title', 'isbn', 'publisher')
-    list_filter = ('publication_date', 'last_updated')
+    list_filter = ('published_year', 'last_updated')
     autocomplete_fields = ['authors']
 
 @admin.register(Reservation)

@@ -58,7 +58,7 @@ class BookSchemaOut(Schema):
     title: str
     isbn: str | None = None
     publisher: str | None = None
-    publication_date: datetime | None = None
+    published_year: int | None = None
     page_count: int | None = None
     cover_url: str | None = None
     language: str | None = None
@@ -68,7 +68,7 @@ class BookSchemaIn(Schema):
     title: str
     isbn: str
     publisher: str | None = None
-    publication_date: datetime | None = None
+    published_year: int | None = None
     page_count: int | None = None
     cover_url: str | None = None
     language: str | None = None

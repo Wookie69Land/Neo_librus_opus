@@ -1,7 +1,10 @@
 
+from django.core.exceptions import ValidationError
 from ninja import Router
+from ninja.errors import HttpError
 
 from app.api.serializers import AuthorSchemaOut, BookSchemaIn, BookSchemaOut
+from app.domain.isbn import normalise_isbn, validate_isbn
 from app.domain.models import Author, Book, BookAuthor
 from app.domain.repositories import AuthorRepository, BookAuthorRepository, BookRepository
 
@@ -19,7 +22,7 @@ async def list_books(request):
             title=book.title,
             isbn=book.isbn,
             publisher=book.publisher,
-            publication_date=book.publication_date,
+            published_year=book.published_year,
             page_count=book.page_count,
             cover_url=book.cover_url,
             language=book.language,
@@ -33,7 +36,14 @@ async def list_books(request):
 
 @router.post("", response=BookSchemaOut)
 async def create_book(request, payload: BookSchemaIn):
-    book = await book_repo.create(**payload.dict(exclude={"author_ids"}))
+    payload_data = payload.dict(exclude={"author_ids"})
+    try:
+        validate_isbn(payload_data["isbn"])
+        payload_data["isbn"] = normalise_isbn(payload_data["isbn"])
+        book = await book_repo.create(**payload_data)
+    except ValidationError as exc:
+        raise HttpError(422, "; ".join(exc.messages)) from exc
+
     for author_id in payload.author_ids:
         await book_author_repo.model.objects.acreate(book=book, author_id=author_id)
 
@@ -43,7 +53,7 @@ async def create_book(request, payload: BookSchemaIn):
         title=book.title,
         isbn=book.isbn,
         publisher=book.publisher,
-        publication_date=book.publication_date,
+        published_year=book.published_year,
         page_count=book.page_count,
         cover_url=book.cover_url,
         language=book.language,
@@ -58,7 +68,7 @@ async def get_book(request, book_id: int):
         title=book.title,
         isbn=book.isbn,
         publisher=book.publisher,
-        publication_date=book.publication_date,
+        published_year=book.published_year,
         page_count=book.page_count,
         cover_url=book.cover_url,
         language=book.language,
@@ -69,7 +79,17 @@ async def get_book(request, book_id: int):
 
 @router.put("/{book_id}", response=BookSchemaOut)
 async def update_book(request, book_id: int, payload: BookSchemaIn):
-    book = await book_repo.update(book_id, **payload.dict(exclude={"author_ids"}))
+    payload_data = payload.dict(exclude={"author_ids"})
+    try:
+        validate_isbn(payload_data["isbn"])
+        payload_data["isbn"] = normalise_isbn(payload_data["isbn"])
+        book = await book_repo.update(book_id, **payload_data)
+    except ValidationError as exc:
+        raise HttpError(422, "; ".join(exc.messages)) from exc
+
+    if book is None:
+        raise HttpError(404, "Book not found.")
+
     await BookAuthor.objects.filter(book_id=book_id).adelete()
     for author_id in payload.author_ids:
         await book_author_repo.model.objects.acreate(book=book, author_id=author_id)
@@ -80,7 +100,7 @@ async def update_book(request, book_id: int, payload: BookSchemaIn):
         title=book.title,
         isbn=book.isbn,
         publisher=book.publisher,
-        publication_date=book.publication_date,
+        published_year=book.published_year,
         page_count=book.page_count,
         cover_url=book.cover_url,
         language=book.language,

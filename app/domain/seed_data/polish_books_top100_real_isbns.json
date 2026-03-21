@@ -1,0 +1,1035 @@
+{
+    "dataset":  "top-100-famous-polish-books",
+    "books":  [
+                  {
+                      "isbn":  "9788363625252",
+                      "title":  "Pan Tadeusz",
+                      "authors":  [
+                                      "Adam Mickiewicz"
+                                  ],
+                      "published_year":  1834,
+                      "category":  "Epopeja narodowa",
+                      "publisher":  "Masterlab",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788328538566",
+                      "title":  "Dziady",
+                      "authors":  [
+                                      "Adam Mickiewicz"
+                                  ],
+                      "published_year":  1823,
+                      "category":  "Dramat romantyczny",
+                      "publisher":  "Helion",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788381614603",
+                      "title":  "Ballady i romanse",
+                      "authors":  [
+                                      "Adam Mickiewicz"
+                                  ],
+                      "published_year":  1822,
+                      "category":  "Poezja romantyczna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9781020300042",
+                      "title":  "Konrad Wallenrod",
+                      "authors":  [
+                                      "Adam Mickiewicz"
+                                  ],
+                      "published_year":  1828,
+                      "category":  "Poemat powieściowy",
+                      "publisher":  "Legare Street Press",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788328522329",
+                      "title":  "Grażyna",
+                      "authors":  [
+                                      "Adam Mickiewicz"
+                                  ],
+                      "published_year":  1823,
+                      "category":  "Poemat powieściowy",
+                      "publisher":  "Helion",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788328547728",
+                      "title":  "Sonety krymskie",
+                      "authors":  [
+                                      "Adam Mickiewicz"
+                                  ],
+                      "published_year":  1826,
+                      "category":  "Poezja romantyczna",
+                      "publisher":  "Helion",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788365776129",
+                      "title":  "Księgi narodu polskiego i pielgrzymstwa polskiego",
+                      "authors":  [
+                                      "Adam Mickiewicz"
+                                  ],
+                      "published_year":  1832,
+                      "category":  "Proza polityczna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788373892637",
+                      "title":  "Lalka",
+                      "authors":  [
+                                      "Bolesław Prus"
+                                  ],
+                      "published_year":  1890,
+                      "category":  "Powieść realistyczna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788328546165",
+                      "title":  "Faraon",
+                      "authors":  [
+                                      "Bolesław Prus"
+                                  ],
+                      "published_year":  1897,
+                      "category":  "Powieść historyczna",
+                      "publisher":  "Helion",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788328548084",
+                      "title":  "Placówka",
+                      "authors":  [
+                                      "Bolesław Prus"
+                                  ],
+                      "published_year":  1886,
+                      "category":  "Powieść realistyczna",
+                      "publisher":  "Helion",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788365172006",
+                      "title":  "Emancypantki",
+                      "authors":  [
+                                      "Bolesław Prus"
+                                  ],
+                      "published_year":  1894,
+                      "category":  "Powieść społeczna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788379913725",
+                      "title":  "Kamizelka",
+                      "authors":  [
+                                      "Bolesław Prus"
+                                  ],
+                      "published_year":  1882,
+                      "category":  "Nowela",
+                      "publisher":  "Masterlab",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788328549760",
+                      "title":  "Nad Niemnem",
+                      "authors":  [
+                                      "Eliza Orzeszkowa"
+                                  ],
+                      "published_year":  1888,
+                      "category":  "Powieść realistyczna",
+                      "publisher":  "Helion",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9785042636721",
+                      "title":  "Gloria victis",
+                      "authors":  [
+                                      "Eliza Orzeszkowa"
+                                  ],
+                      "published_year":  1910,
+                      "category":  "Zbiór opowiadań",
+                      "publisher":  "Litres",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788360004234",
+                      "title":  "Cham",
+                      "authors":  [
+                                      "Eliza Orzeszkowa"
+                                  ],
+                      "published_year":  1888,
+                      "category":  "Powieść społeczna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788726106572",
+                      "title":  "Meir Ezofowicz",
+                      "authors":  [
+                                      "Eliza Orzeszkowa"
+                                  ],
+                      "published_year":  1878,
+                      "category":  "Powieść społeczna",
+                      "publisher":  "Lindhardt og Ringhof",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788371412127",
+                      "title":  "Quo Vadis",
+                      "authors":  [
+                                      "Henryk Sienkiewicz"
+                                  ],
+                      "published_year":  1896,
+                      "category":  "Powieść historyczna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9780359983223",
+                      "title":  "Potop",
+                      "authors":  [
+                                      "Henryk Sienkiewicz"
+                                  ],
+                      "published_year":  1886,
+                      "category":  "Powieść historyczna",
+                      "publisher":  "Lulu.com",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788726090482",
+                      "title":  "Ogniem i mieczem",
+                      "authors":  [
+                                      "Henryk Sienkiewicz"
+                                  ],
+                      "published_year":  1884,
+                      "category":  "Powieść historyczna",
+                      "publisher":  "Lindhardt og Ringhof",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788373898943",
+                      "title":  "Pan Wołodyjowski",
+                      "authors":  [
+                                      "Henryk Sienkiewicz"
+                                  ],
+                      "published_year":  1888,
+                      "category":  "Powieść historyczna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788306015171",
+                      "title":  "Krzyżacy",
+                      "authors":  [
+                                      "Henryk Sienkiewicz"
+                                  ],
+                      "published_year":  1900,
+                      "category":  "Powieść historyczna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9781981876143",
+                      "title":  "W pustyni i w puszczy",
+                      "authors":  [
+                                      "Henryk Sienkiewicz"
+                                  ],
+                      "published_year":  1911,
+                      "category":  "Powieść przygodowa",
+                      "publisher":  "Createspace Independent Publishing Platform",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788361056881",
+                      "title":  "Bez dogmatu",
+                      "authors":  [
+                                      "Henryk Sienkiewicz"
+                                  ],
+                      "published_year":  1891,
+                      "category":  "Powieść psychologiczna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788327261366",
+                      "title":  "Chłopi",
+                      "authors":  [
+                                      "Władysław Stanisław Reymont"
+                                  ],
+                      "published_year":  1904,
+                      "category":  "Powieść realistyczna",
+                      "publisher":  "Virtualo",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788385152583",
+                      "title":  "Ziemia obiecana",
+                      "authors":  [
+                                      "Władysław Stanisław Reymont"
+                                  ],
+                      "published_year":  1899,
+                      "category":  "Powieść realistyczna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9785042637681",
+                      "title":  "Komediantka",
+                      "authors":  [
+                                      "Władysław Stanisław Reymont"
+                                  ],
+                      "published_year":  1896,
+                      "category":  "Powieść obyczajowa",
+                      "publisher":  "Litres",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9785042637766",
+                      "title":  "Fermenty",
+                      "authors":  [
+                                      "Władysław Stanisław Reymont"
+                                  ],
+                      "published_year":  1897,
+                      "category":  "Powieść obyczajowa",
+                      "publisher":  "Litres",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9785040219711",
+                      "title":  "Przedwiośnie",
+                      "authors":  [
+                                      "Stefan Żeromski"
+                                  ],
+                      "published_year":  1924,
+                      "category":  "Powieść polityczna",
+                      "publisher":  "Litres",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788328546400",
+                      "title":  "Ludzie bezdomni",
+                      "authors":  [
+                                      "Stefan Żeromski"
+                                  ],
+                      "published_year":  1900,
+                      "category":  "Powieść społeczna",
+                      "publisher":  "Helion",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9785040495450",
+                      "title":  "Syzyfowe prace",
+                      "authors":  [
+                                      "Stefan Żeromski"
+                                  ],
+                      "published_year":  1897,
+                      "category":  "Powieść edukacyjna",
+                      "publisher":  "ЛитРес, Fundacja Nowoczesna Polska",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9785042638398",
+                      "title":  "Popioły",
+                      "authors":  [
+                                      "Stefan Żeromski"
+                                  ],
+                      "published_year":  1904,
+                      "category":  "Powieść historyczna",
+                      "publisher":  "Litres",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9785040495467",
+                      "title":  "Wierna rzeka",
+                      "authors":  [
+                                      "Stefan Żeromski"
+                                  ],
+                      "published_year":  1912,
+                      "category":  "Powieść historyczna",
+                      "publisher":  "Litres",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9785042637254",
+                      "title":  "Rozdzióbią nas kruki, wrony...",
+                      "authors":  [
+                                      "Stefan Żeromski"
+                                  ],
+                      "published_year":  1895,
+                      "category":  "Opowiadanie",
+                      "publisher":  "Litres",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9785042582936",
+                      "title":  "Moralność pani Dulskiej",
+                      "authors":  [
+                                      "Gabriela Zapolska"
+                                  ],
+                      "published_year":  1906,
+                      "category":  "Dramat obyczajowy",
+                      "publisher":  "Litres",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9785040495535",
+                      "title":  "Kaśka Kariatyda",
+                      "authors":  [
+                                      "Gabriela Zapolska"
+                                  ],
+                      "published_year":  1888,
+                      "category":  "Powieść naturalistyczna",
+                      "publisher":  "Litres",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788375172959",
+                      "title":  "Granica",
+                      "authors":  [
+                                      "Zofia Nałkowska"
+                                  ],
+                      "published_year":  1935,
+                      "category":  "Powieść psychologiczna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788375172966",
+                      "title":  "Medaliony",
+                      "authors":  [
+                                      "Zofia Nałkowska"
+                                  ],
+                      "published_year":  1946,
+                      "category":  "Reportaż literacki",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788373273788",
+                      "title":  "Noce i dnie",
+                      "authors":  [
+                                      "Maria Dąbrowska"
+                                  ],
+                      "published_year":  1932,
+                      "category":  "Powieść obyczajowa",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788377793497",
+                      "title":  "Lato leśnych ludzi",
+                      "authors":  [
+                                      "Maria Rodziewiczówna"
+                                  ],
+                      "published_year":  1920,
+                      "category":  "Powieść obyczajowa",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788308049853",
+                      "title":  "Ferdydurke",
+                      "authors":  [
+                                      "Witold Gombrowicz"
+                                  ],
+                      "published_year":  1937,
+                      "category":  "Powieść awangardowa",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788308010006",
+                      "title":  "Trans-Atlantyk",
+                      "authors":  [
+                                      "Witold Gombrowicz"
+                                  ],
+                      "published_year":  1953,
+                      "category":  "Powieść groteskowa",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9780802151599",
+                      "title":  "Pornografia",
+                      "authors":  [
+                                      "Witold Gombrowicz"
+                                  ],
+                      "published_year":  1960,
+                      "category":  "Powieść psychologiczna",
+                      "publisher":  "Grove Press",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788308054048",
+                      "title":  "Kosmos",
+                      "authors":  [
+                                      "Witold Gombrowicz"
+                                  ],
+                      "published_year":  1965,
+                      "category":  "Powieść egzystencjalna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788371630194",
+                      "title":  "Sklepy cynamonowe",
+                      "authors":  [
+                                      "Bruno Schulz"
+                                  ],
+                      "published_year":  1934,
+                      "category":  "Proza poetycka",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788324060092",
+                      "title":  "Sanatorium pod Klepsydrą",
+                      "authors":  [
+                                      "Bruno Schulz"
+                                  ],
+                      "published_year":  1937,
+                      "category":  "Proza poetycka",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788308068564",
+                      "title":  "Inny świat",
+                      "authors":  [
+                                      "Gustaw Herling-Grudziński"
+                                  ],
+                      "published_year":  1951,
+                      "category":  "Literatura obozowa",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788327300874",
+                      "title":  "Zdążyć przed Panem Bogiem",
+                      "authors":  [
+                                      "Hanna Krall"
+                                  ],
+                      "published_year":  1977,
+                      "category":  "Reportaż literacki",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788304050624",
+                      "title":  "Cesarz",
+                      "authors":  [
+                                      "Ryszard Kapuściński"
+                                  ],
+                      "published_year":  1978,
+                      "category":  "Reportaż literacki",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788307033181",
+                      "title":  "Imperium",
+                      "authors":  [
+                                      "Ryszard Kapuściński"
+                                  ],
+                      "published_year":  1993,
+                      "category":  "Reportaż literacki",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788375521122",
+                      "title":  "Heban",
+                      "authors":  [
+                                      "Ryszard Kapuściński"
+                                  ],
+                      "published_year":  1998,
+                      "category":  "Reportaż literacki",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788308075197",
+                      "title":  "Solaris",
+                      "authors":  [
+                                      "Stanisław Lem"
+                                  ],
+                      "published_year":  1961,
+                      "category":  "Science fiction",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788308080054",
+                      "title":  "Cyberiada",
+                      "authors":  [
+                                      "Stanisław Lem"
+                                  ],
+                      "published_year":  1965,
+                      "category":  "Science fiction",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788368059809",
+                      "title":  "Bajki robotów",
+                      "authors":  [
+                                      "Stanisław Lem"
+                                  ],
+                      "published_year":  1964,
+                      "category":  "Science fiction",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788308029329",
+                      "title":  "Powrót z gwiazd",
+                      "authors":  [
+                                      "Stanisław Lem"
+                                  ],
+                      "published_year":  1961,
+                      "category":  "Science fiction",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788308048900",
+                      "title":  "Dzienniki gwiazdowe",
+                      "authors":  [
+                                      "Stanisław Lem"
+                                  ],
+                      "published_year":  1957,
+                      "category":  "Science fiction",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788308063514",
+                      "title":  "Szpital Przemienienia",
+                      "authors":  [
+                                      "Stanisław Lem"
+                                  ],
+                      "published_year":  1948,
+                      "category":  "Powieść psychologiczna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788308063248",
+                      "title":  "Pamiętnik znaleziony w wannie",
+                      "authors":  [
+                                      "Stanisław Lem"
+                                  ],
+                      "published_year":  1961,
+                      "category":  "Science fiction",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788308043707",
+                      "title":  "Dolina Issy",
+                      "authors":  [
+                                      "Czesław Miłosz"
+                                  ],
+                      "published_year":  1955,
+                      "category":  "Powieść autobiograficzna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788308046227",
+                      "title":  "Zniewolony umysł",
+                      "authors":  [
+                                      "Czesław Miłosz"
+                                  ],
+                      "published_year":  1953,
+                      "category":  "Esej",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788308031285",
+                      "title":  "Traktat poetycki",
+                      "authors":  [
+                                      "Czesław Miłosz"
+                                  ],
+                      "published_year":  1957,
+                      "category":  "Poemat eseistyczny",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788391797990",
+                      "title":  "Barbarzyńca w ogrodzie",
+                      "authors":  [
+                                      "Zbigniew Herbert"
+                                  ],
+                      "published_year":  1962,
+                      "category":  "Esej",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788361298342",
+                      "title":  "Pan Cogito",
+                      "authors":  [
+                                      "Zbigniew Herbert"
+                                  ],
+                      "published_year":  1974,
+                      "category":  "Poezja współczesna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788391797945",
+                      "title":  "Martwa natura z wędzidłem",
+                      "authors":  [
+                                      "Zbigniew Herbert"
+                                  ],
+                      "published_year":  1993,
+                      "category":  "Esej",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788324067220",
+                      "title":  "Wielka liczba",
+                      "authors":  [
+                                      "Wisława Szymborska"
+                                  ],
+                      "published_year":  1976,
+                      "category":  "Poezja współczesna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788324002276",
+                      "title":  "Chwila",
+                      "authors":  [
+                                      "Wisława Szymborska"
+                                  ],
+                      "published_year":  2002,
+                      "category":  "Poezja współczesna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788324065233",
+                      "title":  "Koniec i początek",
+                      "authors":  [
+                                      "Wisława Szymborska"
+                                  ],
+                      "published_year":  1993,
+                      "category":  "Poezja współczesna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788320706437",
+                      "title":  "Panny z Wilka",
+                      "authors":  [
+                                      "Jarosław Iwaszkiewicz"
+                                  ],
+                      "published_year":  1933,
+                      "category":  "Opowiadanie",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788307034713",
+                      "title":  "Brzezina",
+                      "authors":  [
+                                      "Jarosław Iwaszkiewicz"
+                                  ],
+                      "published_year":  1932,
+                      "category":  "Nowela",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788360080696",
+                      "title":  "Matka Joanna od Aniołów",
+                      "authors":  [
+                                      "Jarosław Iwaszkiewicz"
+                                  ],
+                      "published_year":  1946,
+                      "category":  "Opowiadanie",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788367790444",
+                      "title":  "Cudzoziemka",
+                      "authors":  [
+                                      "Maria Kuncewiczowa"
+                                  ],
+                      "published_year":  1936,
+                      "category":  "Powieść psychologiczna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788374144568",
+                      "title":  "Pożoga",
+                      "authors":  [
+                                      "Zofia Kossak-Szczucka"
+                                  ],
+                      "published_year":  1922,
+                      "category":  "Wspomnienia",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788310135155",
+                      "title":  "Kamienie na szaniec",
+                      "authors":  [
+                                      "Aleksander Kamiński"
+                                  ],
+                      "published_year":  1943,
+                      "category":  "Literatura wojenna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788324130771",
+                      "title":  "Dywizjon 303",
+                      "authors":  [
+                                      "Arkady Fiedler"
+                                  ],
+                      "published_year":  1942,
+                      "category":  "Literatura wojenna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788380493070",
+                      "title":  "Sól ziemi",
+                      "authors":  [
+                                      "Józef Wittlin"
+                                  ],
+                      "published_year":  1935,
+                      "category":  "Powieść antywojenna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788306028522",
+                      "title":  "Weiser Dawidek",
+                      "authors":  [
+                                      "Paweł Huelle"
+                                  ],
+                      "published_year":  1987,
+                      "category":  "Powieść inicjacyjna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788071497943",
+                      "title":  "Hanemann",
+                      "authors":  [
+                                      "Stefan Chwin"
+                                  ],
+                      "published_year":  1995,
+                      "category":  "Powieść historyczna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788306030198",
+                      "title":  "Prawiek i inne czasy",
+                      "authors":  [
+                                      "Olga Tokarczuk"
+                                  ],
+                      "published_year":  1996,
+                      "category":  "Powieść magicznorealistyczna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788308075609",
+                      "title":  "Dom dzienny, dom nocny",
+                      "authors":  [
+                                      "Olga Tokarczuk"
+                                  ],
+                      "published_year":  1998,
+                      "category":  "Powieść eksperymentalna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9786045689837",
+                      "title":  "Bieguni",
+                      "authors":  [
+                                      "Olga Tokarczuk"
+                                  ],
+                      "published_year":  2007,
+                      "category":  "Powieść eseistyczna",
+                      "publisher":  "Phu Nu",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788308084601",
+                      "title":  "Księgi Jakubowe",
+                      "authors":  [
+                                      "Olga Tokarczuk"
+                                  ],
+                      "published_year":  2014,
+                      "category":  "Powieść historyczna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788308075777",
+                      "title":  "Empuzjon",
+                      "authors":  [
+                                      "Olga Tokarczuk"
+                                  ],
+                      "published_year":  2022,
+                      "category":  "Powieść psychologiczna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788373910881",
+                      "title":  "Wojna polsko-ruska pod flagą biało-czerwoną",
+                      "authors":  [
+                                      "Dorota Masłowska"
+                                  ],
+                      "published_year":  2002,
+                      "category":  "Powieść współczesna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788365613288",
+                      "title":  "Paw królowej",
+                      "authors":  [
+                                      "Dorota Masłowska"
+                                  ],
+                      "published_year":  2005,
+                      "category":  "Powieść współczesna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788324055326",
+                      "title":  "Traktat o łuskaniu fasoli",
+                      "authors":  [
+                                      "Wiesław Myśliwski"
+                                  ],
+                      "published_year":  2006,
+                      "category":  "Powieść egzystencjalna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788372278296",
+                      "title":  "Widnokrąg",
+                      "authors":  [
+                                      "Wiesław Myśliwski"
+                                  ],
+                      "published_year":  1996,
+                      "category":  "Powieść autobiograficzna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788370070977",
+                      "title":  "Kamień na kamieniu",
+                      "authors":  [
+                                      "Wiesław Myśliwski"
+                                  ],
+                      "published_year":  1984,
+                      "category":  "Powieść chłopska",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788324059874",
+                      "title":  "Nagi sad",
+                      "authors":  [
+                                      "Wiesław Myśliwski"
+                                  ],
+                      "published_year":  1967,
+                      "category":  "Powieść obyczajowa",
+                      "publisher":  "Otwarte",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788375529074",
+                      "title":  "Mała apokalipsa",
+                      "authors":  [
+                                      "Tadeusz Konwicki"
+                                  ],
+                      "published_year":  1979,
+                      "category":  "Powieść polityczna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788306023459",
+                      "title":  "Kronika wypadków miłosnych",
+                      "authors":  [
+                                      "Tadeusz Konwicki"
+                                  ],
+                      "published_year":  1974,
+                      "category":  "Powieść obyczajowa",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788380495999",
+                      "title":  "Kompleks polski",
+                      "authors":  [
+                                      "Tadeusz Konwicki"
+                                  ],
+                      "published_year":  1977,
+                      "category":  "Powieść polityczna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9781786893369",
+                      "title":  "Madame",
+                      "authors":  [
+                                      "Antoni Libera"
+                                  ],
+                      "published_year":  1998,
+                      "category":  "Powieść obyczajowa",
+                      "publisher":  "Canongate Books",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788306026788",
+                      "title":  "Początek",
+                      "authors":  [
+                                      "Andrzej Szczypiorski"
+                                  ],
+                      "published_year":  1986,
+                      "category":  "Powieść historyczna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788308062241",
+                      "title":  "Król",
+                      "authors":  [
+                                      "Szczepan Twardoch"
+                                  ],
+                      "published_year":  2016,
+                      "category":  "Powieść historyczna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788308062166",
+                      "title":  "Morfina",
+                      "authors":  [
+                                      "Szczepan Twardoch"
+                                  ],
+                      "published_year":  2012,
+                      "category":  "Powieść historyczna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788377474808",
+                      "title":  "Gnój",
+                      "authors":  [
+                                      "Wojciech Kuczok"
+                                  ],
+                      "published_year":  2003,
+                      "category":  "Powieść autobiograficzna",
+                      "publisher":  "WAB",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788361407171",
+                      "title":  "Lubiewo",
+                      "authors":  [
+                                      "Michał Witkowski"
+                                  ],
+                      "published_year":  2005,
+                      "category":  "Powieść współczesna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788324704767",
+                      "title":  "Jadąc do Babadag",
+                      "authors":  [
+                                      "Andrzej Stasiuk"
+                                  ],
+                      "published_year":  2004,
+                      "category":  "Esej podróżniczy",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788380497504",
+                      "title":  "Dukla",
+                      "authors":  [
+                                      "Andrzej Stasiuk"
+                                  ],
+                      "published_year":  1997,
+                      "category":  "Proza eseistyczna",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9788375368970",
+                      "title":  "Miedzianka. Historia znikania",
+                      "authors":  [
+                                      "Filip Springer"
+                                  ],
+                      "published_year":  2011,
+                      "category":  "Reportaż literacki",
+                      "language":  "pol"
+                  },
+                  {
+                      "isbn":  "9786045302385",
+                      "title":  "Pod Mocnym Aniołem",
+                      "authors":  [
+                                      "Jerzy Pilch"
+                                  ],
+                      "published_year":  2000,
+                      "category":  "Powieść współczesna",
+                      "language":  "pol"
+                  }
+              ]
+}

@@ -1,0 +1,85 @@
+{
+  "dataset": "top-10-major-polish-libraries",
+  "libraries": [
+    {
+      "name": "Biblioteka Narodowa",
+      "address": "al. Niepodległości 213",
+      "city": "Warszawa",
+      "phone": "+48 22 608 29 99",
+      "email": "kontakt@bn.org.pl",
+      "region": 7
+    },
+    {
+      "name": "Biblioteka Jagiellońska",
+      "address": "al. Mickiewicza 22",
+      "city": "Kraków",
+      "phone": "+48 12 663 10 00",
+      "email": "bj@uj.edu.pl",
+      "region": 6
+    },
+    {
+      "name": "Biblioteka Śląska",
+      "address": "Plac Rady Europy 1",
+      "city": "Katowice",
+      "phone": "+48 32 208 37 00",
+      "email": "info@bs.katowice.pl",
+      "region": 12
+    },
+    {
+      "name": "Biblioteka Uniwersytecka w Warszawie",
+      "address": "ul. Dobra 56/66",
+      "city": "Warszawa",
+      "phone": "+48 22 55 25 178",
+      "email": "buw@uw.edu.pl",
+      "region": 7
+    },
+    {
+      "name": "Zakład Narodowy im. Ossolińskich",
+      "address": "ul. Szewska 37",
+      "city": "Wrocław",
+      "phone": "+48 71 335 64 00",
+      "email": "ossolineum@ossolineum.pl",
+      "region": 1
+    },
+    {
+      "name": "Książnica Pomorska im. Stanisława Staszica",
+      "address": "ul. Podgórna 15/16",
+      "city": "Szczecin",
+      "phone": "+48 91 48 19 100",
+      "email": "ksiaznica@ksiaznica.szczecin.pl",
+      "region": 16
+    },
+    {
+      "name": "Wojewódzka Biblioteka Publiczna w Krakowie",
+      "address": "ul. Rajska 1",
+      "city": "Kraków",
+      "phone": "+48 12 375 22 00",
+      "email": "biblioteka@rajska.info",
+      "region": 6
+    },
+    {
+      "name": "Biblioteka Raczyńskich",
+      "address": "Pl. Wolności 19",
+      "city": "Poznań",
+      "phone": "+48 61 88 58 962",
+      "email": "sekretariat@bracz.edu.pl",
+      "region": 15
+    },
+    {
+      "name": "Wojewódzka Biblioteka Publiczna im. Hieronima Łopacińskiego",
+      "address": "ul. Narutowicza 4",
+      "city": "Lublin",
+      "phone": "+48 81 52 87 400",
+      "email": "info@wbp.lublin.pl",
+      "region": 3
+    },
+    {
+      "name": "Biblioteka Uniwersytecka w Poznaniu",
+      "address": "ul. F. Ratajczaka 38/40",
+      "city": "Poznań",
+      "phone": "+48 61 829 38 17",
+      "email": "library@amu.edu.pl",
+      "region": 15
+    }
+  ]
+}
