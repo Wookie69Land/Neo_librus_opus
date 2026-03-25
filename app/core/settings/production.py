@@ -15,6 +15,19 @@ env = environ.Env()
 
 DEBUG = False
 
+STATIC_ROOT = BASE_DIR / "staticfiles"
+MIDDLEWARE = [
+    "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    *MIDDLEWARE[1:],
+]
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+    },
+}
+
 
 SENTRY_DSN: Final[str] = env("SENTRY_DSN", default="")
 

@@ -9,6 +9,7 @@ from django.conf import settings
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core.mail import send_mail
 from django.db import IntegrityError, transaction
+from django.http import HttpResponseRedirect
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from ninja import Query, Router, Schema
@@ -114,7 +115,7 @@ async def activate(request, uid: str = Query(...), token: str = Query(...)):
     if user is not None and account_activation_token.check_token(user, token):
         user.is_active = True
         await user.asave()
-        return {"detail": "Account activated successfully"}
+        return HttpResponseRedirect(settings.ACCOUNT_ACTIVATION_SUCCESS_URL)
     else:
         return 400, {"detail": "Invalid activation link"}
 
