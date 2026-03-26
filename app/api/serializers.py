@@ -1,11 +1,12 @@
 from datetime import datetime
 
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.core.validators import validate_email
+from django.contrib.auth.password_validation import validate_password
 from ninja import Field, Schema
 from pydantic import field_validator
 
 from app.domain.models import Voivodeship
+from app.domain.validators import validate_email_value, validate_person_name
 
 region_description = "Region as an integer. Available choices:\\n" + "\\n".join(
     [f"{choice.value} - {choice.label}" for choice in Voivodeship]
@@ -46,12 +47,35 @@ class RegisterSchema(Schema):
     @field_validator("email")
     @classmethod
     def normalize_email(cls, value: str) -> str:
-        normalized = value.strip().lower()
         try:
-            validate_email(normalized)
+            return validate_email_value(value)
         except DjangoValidationError as exc:
             raise ValueError("Enter a valid email address.") from exc
-        return normalized
+
+    @field_validator("first_name")
+    @classmethod
+    def validate_first_name(cls, value: str) -> str:
+        try:
+            return validate_person_name(value, field_label="First name")
+        except DjangoValidationError as exc:
+            raise ValueError(" ".join(exc.messages)) from exc
+
+    @field_validator("last_name")
+    @classmethod
+    def validate_last_name(cls, value: str) -> str:
+        try:
+            return validate_person_name(value, field_label="Last name")
+        except DjangoValidationError as exc:
+            raise ValueError(" ".join(exc.messages)) from exc
+
+    @field_validator("password")
+    @classmethod
+    def validate_register_password(cls, value: str) -> str:
+        try:
+            validate_password(value)
+        except DjangoValidationError as exc:
+            raise ValueError(" ".join(exc.messages)) from exc
+        return value
 
 class LoginSchema(Schema):
     login: str
@@ -110,14 +134,12 @@ class LibrarySchemaIn(Schema):
     def normalize_email(cls, value: str | None) -> str | None:
         if value is None:
             return None
-        normalized = value.strip().lower()
-        if not normalized:
+        if not value.strip():
             return None
         try:
-            validate_email(normalized)
+            return validate_email_value(value)
         except DjangoValidationError as exc:
             raise ValueError("Enter a valid email address.") from exc
-        return normalized
 
 class LibraryBookSchema(Schema):
     book: BookSchemaOut
@@ -175,11 +197,40 @@ class UserUpdateSchema(Schema):
     def normalize_email(cls, value: str | None) -> str | None:
         if value is None:
             return None
-        normalized = value.strip().lower()
-        if not normalized:
+        if not value.strip():
             return None
         try:
-            validate_email(normalized)
+            return validate_email_value(value)
         except DjangoValidationError as exc:
             raise ValueError("Enter a valid email address.") from exc
-        return normalized
+
+    @field_validator("first_name")
+    @classmethod
+    def validate_first_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        try:
+            return validate_person_name(value, field_label="First name")
+        except DjangoValidationError as exc:
+            raise ValueError(" ".join(exc.messages)) from exc
+
+    @field_validator("last_name")
+    @classmethod
+    def validate_last_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        try:
+            return validate_person_name(value, field_label="Last name")
+        except DjangoValidationError as exc:
+            raise ValueError(" ".join(exc.messages)) from exc
+
+    @field_validator("password")
+    @classmethod
+    def validate_update_password(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        try:
+            validate_password(value)
+        except DjangoValidationError as exc:
+            raise ValueError(" ".join(exc.messages)) from exc
+        return value

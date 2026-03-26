@@ -89,9 +89,16 @@ AUTH_PASSWORD_VALIDATORS: Final[list[dict[str, str]]] = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {"min_length": 12},
+    },
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+    {"NAME": "app.domain.validators.NonWhitespacePasswordValidator"},
+    {"NAME": "app.domain.validators.UppercasePasswordValidator"},
+    {"NAME": "app.domain.validators.DigitPasswordValidator"},
+    {"NAME": "app.domain.validators.SpecialCharacterPasswordValidator"},
 ]
 
 # Internationalization

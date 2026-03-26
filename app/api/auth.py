@@ -6,13 +6,15 @@ import jwt
 
 from asgiref.sync import sync_to_async
 from django.conf import settings
+from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.mail import send_mail
 from django.db import IntegrityError, transaction
 from django.http import HttpResponseRedirect
+from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
-from django.utils import timezone
 from ninja import Query, Router, Schema
 from unidecode import unidecode
 
@@ -58,7 +60,7 @@ async def generate_username(first_name, last_name):
         return f"{base_username}{max_number + 1}"
 
 
-@router.post("/register", response={201: LibraryUserSchema, 409: dict, 500: dict}, auth=None)
+@router.post("/register", response={201: LibraryUserSchema, 409: dict, 422: dict, 500: dict}, auth=None)
 async def register(request, payload: RegisterSchema):
     if await LibraryUser.objects.filter(email=payload.email).aexists():
         return 409, {"detail": "A user with this email already exists."}
@@ -75,6 +77,7 @@ async def register(request, payload: RegisterSchema):
                 region=payload.region,
                 is_active=False,
             )
+            validate_password(payload.password, user=user)
             user.set_password(payload.password)
             user.save()
 
@@ -95,6 +98,8 @@ async def register(request, payload: RegisterSchema):
 
     try:
         user = await sync_to_async(_create_user_and_send_activation)()
+    except DjangoValidationError as exc:
+        return 422, {"detail": exc.messages}
     except IntegrityError:
         return 409, {"detail": "A user with this email or username already exists."}
     except (SMTPException, ConnectionError, OSError):

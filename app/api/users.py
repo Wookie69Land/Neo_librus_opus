@@ -1,3 +1,5 @@
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from ninja import Router
 
 from app.api.jwt_utils import decode_token
@@ -57,7 +59,7 @@ async def get_user(request, user_id: int):
     )
 
 
-@router.put("/{user_id}", response={200: LibraryUserSchema, 403: dict, 404: dict})
+@router.put("/{user_id}", response={200: LibraryUserSchema, 403: dict, 404: dict, 422: dict})
 async def update_user(request, user_id: int, payload: UserUpdateSchema):
     session: SessionToken = request.auth
     requester_id, _role_id, _library_id = _parse_token(session)
@@ -70,12 +72,16 @@ async def update_user(request, user_id: int, payload: UserUpdateSchema):
     except LibraryUser.DoesNotExist:
         return 404, {"detail": "User not found"}
 
-    for field, value in payload.dict(exclude_none=True, exclude_unset=True).items():
-        if field == "password":
-            user.set_password(value)
-        else:
-            setattr(user, field, value)
-    await user.asave()
+    try:
+        for field, value in payload.dict(exclude_none=True, exclude_unset=True).items():
+            if field == "password":
+                validate_password(value, user=user)
+                user.set_password(value)
+            else:
+                setattr(user, field, value)
+        await user.asave()
+    except DjangoValidationError as exc:
+        return 422, {"detail": exc.messages}
 
     return 200, user
 

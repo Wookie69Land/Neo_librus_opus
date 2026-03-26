@@ -8,12 +8,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 from app.domain.isbn import normalise_isbn, validate_isbn
-
-
-def _normalise_email_value(value: str | None) -> str:
-    if not value:
-        return ""
-    return value.strip().lower()
+from app.domain.validators import normalise_email_value, validate_person_name
 
 
 class Status(models.Model):
@@ -90,7 +85,11 @@ class LibraryUser(AbstractUser):
 
     def clean(self) -> None:
         super().clean()
-        self.email = _normalise_email_value(self.email)
+        self.email = normalise_email_value(self.email)
+        if self.first_name:
+            self.first_name = validate_person_name(self.first_name, field_label="First name")
+        if self.last_name:
+            self.last_name = validate_person_name(self.last_name, field_label="Last name")
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         self.full_clean()
@@ -130,7 +129,7 @@ class Library(models.Model):
 
     def clean(self) -> None:
         super().clean()
-        self.email = _normalise_email_value(self.email) or None
+        self.email = normalise_email_value(self.email) or None
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         self.full_clean()
