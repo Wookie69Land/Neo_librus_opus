@@ -41,9 +41,9 @@ class LibraryUserRepository(AsyncRepository[LibraryUser]):
     async def get_by_username_or_email(self, login: str):
         try:
             if "@" in login:
-                return await self.model.objects.aget(email=login)
+                return await self.model.objects.aget(email=login.strip().lower())
             else:
-                return await self.model.objects.aget(username=login)
+                return await self.model.objects.aget(username=login.strip())
         except self.model.DoesNotExist:
             return None
 

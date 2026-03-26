@@ -8,12 +8,12 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from app.domain.isbn import normalise_isbn, validate_isbn
-from app.domain.models import Book
+from app.domain.models import Book, IntegrationSource
 from app.domain.seed_utils import apply_field_updates, prune_orphan_authors, sync_book_authors
 
 SEED_FILE = Path(__file__).resolve().parents[2] / "seed_data" / "polish_books_top100_real_isbns.json"
 DATA_SOURCE = "curated-polish-top100"
-INTEGRATION_SOURCE = 20
+INTEGRATION_SOURCE = IntegrationSource.CURATED_POLISH_TOP100
 
 
 class Command(BaseCommand):

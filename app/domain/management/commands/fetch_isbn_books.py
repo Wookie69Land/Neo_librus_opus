@@ -30,7 +30,7 @@ from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand
 
 from app.domain.isbn import normalise_isbn, validate_isbn
-from app.domain.models import Author, Book, BookAuthor
+from app.domain.models import Author, Book, BookAuthor, IntegrationSource
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -635,7 +635,7 @@ class Command(BaseCommand):
                             "print_type": data["print_type"],
                             "category": data["category"],
                             "data_source": "e-isbn",
-                            "integration_source": 1,
+                            "integration_source": IntegrationSource.EISBN,
                         },
                     )
                 except Exception as exc:
@@ -654,7 +654,7 @@ class Command(BaseCommand):
                     "print_type": data["print_type"],
                     "category": data["category"],
                     "data_source": "e-isbn",
-                    "integration_source": 1,
+                    "integration_source": IntegrationSource.EISBN,
                 }
                 changed_fields: list[str] = []
                 for field_name, field_value in synced_fields.items():

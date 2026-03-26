@@ -1,6 +1,10 @@
 from datetime import datetime
-from django.core.validators import EmailValidator
+
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.validators import validate_email
 from ninja import Field, Schema
+from pydantic import field_validator
+
 from app.domain.models import Voivodeship
 
 region_description = "Region as an integer. Available choices:\\n" + "\\n".join(
@@ -38,6 +42,16 @@ class RegisterSchema(Schema):
     first_name: str
     last_name: str
     region: int | None = Field(None, description=region_description)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        try:
+            validate_email(normalized)
+        except DjangoValidationError as exc:
+            raise ValueError("Enter a valid email address.") from exc
+        return normalized
 
 class LoginSchema(Schema):
     login: str
@@ -91,6 +105,20 @@ class LibrarySchemaIn(Schema):
     email: str | None = None
     region: int | None = Field(None, description=region_description)
 
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip().lower()
+        if not normalized:
+            return None
+        try:
+            validate_email(normalized)
+        except DjangoValidationError as exc:
+            raise ValueError("Enter a valid email address.") from exc
+        return normalized
+
 class LibraryBookSchema(Schema):
     book: BookSchemaOut
     library: LibrarySchemaOut
@@ -141,3 +169,17 @@ class UserUpdateSchema(Schema):
     last_name: str | None = None
     region: int | None = None
     password: str | None = None
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip().lower()
+        if not normalized:
+            return None
+        try:
+            validate_email(normalized)
+        except DjangoValidationError as exc:
+            raise ValueError("Enter a valid email address.") from exc
+        return normalized

@@ -10,6 +10,12 @@ from django.utils.translation import gettext_lazy as _
 from app.domain.isbn import normalise_isbn, validate_isbn
 
 
+def _normalise_email_value(value: str | None) -> str:
+    if not value:
+        return ""
+    return value.strip().lower()
+
+
 class Status(models.Model):
     """Model for reservation statuses."""
     id = models.AutoField(primary_key=True)
@@ -41,6 +47,12 @@ class Voivodeship(models.IntegerChoices):
     WARMINSKO_MAZURSKIE = 14, _("warmińsko-mazurskie")
     WIELKOPOLSKIE = 15, _("wielkopolskie")
     ZACHODNIOPOMORSKIE = 16, _("zachodniopomorskie")
+
+
+class IntegrationSource(models.IntegerChoices):
+    UNKNOWN = 0, _("Unknown / manual")
+    EISBN = 1, _("e-ISBN")
+    CURATED_POLISH_TOP100 = 20, _("Curated Polish Top 100")
 
 
 class LibraryUser(AbstractUser):
@@ -76,6 +88,14 @@ class LibraryUser(AbstractUser):
         verbose_name = _("Library User")
         verbose_name_plural = _("Library Users")
 
+    def clean(self) -> None:
+        super().clean()
+        self.email = _normalise_email_value(self.email)
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        self.full_clean()
+        super().save(*args, **kwargs)
+
 class Role(models.Model):
     """Model for user roles in a library."""
     id = models.AutoField(primary_key=True,
@@ -108,6 +128,14 @@ class Library(models.Model):
         verbose_name = _("Library")
         verbose_name_plural = _("Libraries")
 
+    def clean(self) -> None:
+        super().clean()
+        self.email = _normalise_email_value(self.email) or None
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        self.full_clean()
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.name
 
@@ -131,7 +159,9 @@ class Book(models.Model):
         max_length=20, unique=True, verbose_name=_("ISBN"), validators=[validate_isbn]
     )
     integration_source = models.SmallIntegerField(
-        default=0, verbose_name=_("Integration Source")
+        choices=IntegrationSource.choices,
+        default=IntegrationSource.UNKNOWN,
+        verbose_name=_("Integration Source"),
     )
     last_updated = models.DateTimeField(auto_now=True, verbose_name=_("Last Updated"))
     data_source = models.CharField(
@@ -157,7 +187,7 @@ class Book(models.Model):
     category = models.CharField(
         max_length=511, blank=True, null=True, verbose_name=_("Category")
     )
-    cover_url = models.URLField(blank=True, null=True, verbose_name=_("Cover URL"))
+    cover_url = models.URLField(max_length=1000, blank=True, null=True, verbose_name=_("Cover URL"))
     language = models.CharField(
         max_length=10, blank=True, null=True, verbose_name=_("Language")
     )
