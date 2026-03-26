@@ -7,6 +7,7 @@ from ninja import Query, Router, Schema
 from ninja.errors import HttpError
 
 from app.api.serializers import AuthorSchemaOut
+from app.domain.languages import get_language_display
 from app.domain.isbn import normalise_isbn
 from app.domain.models import Book, LibraryBook
 
@@ -36,6 +37,7 @@ class BookSearchResultSchema(Schema):
     category: str | None = None
     cover_url: str | None = None
     language: str | None = None
+    language_display: str | None = None
     last_updated: datetime
     authors: list[AuthorSchemaOut]
     libraries: list[SearchLibraryInfoSchema]
@@ -106,6 +108,7 @@ async def _serialize_book(book: Book) -> BookSearchResultSchema:
         category=book.category,
         cover_url=book.cover_url,
         language=book.language,
+        language_display=get_language_display(book.language),
         last_updated=book.last_updated,
         authors=authors,
         libraries=libraries,
@@ -116,7 +119,7 @@ def _base_search_queryset() -> QuerySet[Book]:
     return Book.objects.all().distinct().order_by("title", "id")
 
 
-@router.get("/books", response=list[BookSearchResultSchema])
+@router.get("/books", response=list[BookSearchResultSchema], auth=None)
 async def search_books(request, params: SimpleBookSearchQuery = Query(...)):
     query = params.q.strip()
     if not query:

@@ -1,7 +1,9 @@
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from ninja import Router
+from ninja.errors import HttpError
 
+from app.api.permissions import require_library_admin_or_superuser
 from app.api.jwt_utils import decode_token
 from app.api.serializers import (
     LibraryUserSchema,
@@ -22,11 +24,12 @@ def _parse_token(session_token: SessionToken) -> tuple[int, int, int]:
 @router.get("/{user_id}", response={200: UserDetailSchema, 403: dict, 404: dict})
 async def get_user(request, user_id: int):
     session: SessionToken = request.auth
-    requester_id, role_id, _library_id = _parse_token(session)
-    is_library_worker = role_id != 0
-
-    if requester_id != user_id and not is_library_worker:
-        return 403, {"detail": "Permission denied"}
+    requester_id, _role_id, _library_id = _parse_token(session)
+    if requester_id != user_id:
+        try:
+            await require_library_admin_or_superuser(request)
+        except HttpError:
+            return 403, {"detail": "Permission denied"}
 
     try:
         user = await LibraryUser.objects.aget(id=user_id)

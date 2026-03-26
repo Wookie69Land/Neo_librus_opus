@@ -369,6 +369,52 @@ Runs two maintenance steps every day:
   Finds books assigned to fewer than `2` libraries and randomly adds them to enough
   libraries to reach between `2` and `5` total assignments.
 
+#### First production evidence when jobs seem to run only once
+
+If the worker starts correctly, but later reports show only one automatic run and then
+silence, collect these three signals first:
+
+```bash
+# 1. Worker startup log
+docker compose -f docker-compose.prod.yml logs --tail=1500 worker
+
+# 2. Cron jobs known to the worker
+docker compose -f docker-compose.prod.yml exec worker python -c "from app.tasks.worker import WorkerSettings; print([c.name for c in WorkerSettings.cron_jobs])"
+
+# 3. Reports written by the scheduled jobs
+docker compose -f docker-compose.prod.yml exec web python manage.py show_cyclic_task_reports --task cyclic_book_seeder --limit 10
+docker compose -f docker-compose.prod.yml exec web python manage.py show_cyclic_task_reports --task cyclic_book_manager --limit 10
+```
+
+Example interpretation from a real production check:
+
+- `logs worker` showed only worker startup:
+  `Starting worker for 4 functions: cyclic_book_seeder, cyclic_book_manager, book_enricher, assign_books_to_random_libraries`
+- `WorkerSettings.cron_jobs` returned:
+  `['cyclic_book_seeder', 'cyclic_book_manager']`
+- `show_cyclic_task_reports` showed the last automatic runs at:
+  - `2026-03-22T07:00:00+00:00` for `cyclic_book_seeder`
+  - `2026-03-22T07:15:00+00:00` for `cyclic_book_manager`
+- Older rows with `2026-03-21T16:xx:xx+00:00` were manual runs triggered with
+  `run_cyclic_task`, not scheduler runs.
+
+What this means:
+
+- the worker process starts successfully
+- the worker imports and registers both cron jobs correctly
+- the report command works correctly and shows real executions
+- if no newer automatic rows appear, the scheduler did not fire again after that day
+
+In practice this usually means one of these operational problems:
+
+- the `worker` container was down during the next scheduled window
+- the `worker` container restarted after `07:15`, so the next cron run moved to the next day
+- the server time or container timezone was different from what you expected
+- the worker lost Redis connectivity or was recreated during the day
+
+Important: `show_cyclic_task_reports` does not calculate the schedule. It only prints
+rows already saved to the database. If there is no new row, the job did not actually run.
+
 #### Manual testing right now
 
 You can run any cyclic job immediately from Django without waiting for cron:

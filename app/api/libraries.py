@@ -1,6 +1,10 @@
 
 from ninja import Router
 
+from app.api.permissions import (
+    require_library_admin_for_library_or_superuser,
+    require_superuser,
+)
 from app.api.serializers import LibrarySchemaIn, LibrarySchemaOut
 from app.domain.models import Library
 from app.domain.repositories import LibraryRepository
@@ -15,6 +19,7 @@ async def list_libraries(request):
 
 @router.post("", response=LibrarySchemaOut)
 async def create_library(request, payload: LibrarySchemaIn):
+    require_superuser(request)
     library = await library_repo.create(**payload.dict())
     return library
 
@@ -25,10 +30,12 @@ async def get_library(request, library_id: int):
 
 @router.put("/{library_id}", response=LibrarySchemaOut)
 async def update_library(request, library_id: int, payload: LibrarySchemaIn):
+    await require_library_admin_for_library_or_superuser(request, library_id)
     library = await library_repo.update(library_id, **payload.dict())
     return library
 
 @router.delete("/{library_id}")
 async def delete_library(request, library_id: int):
+    await require_superuser(request, library_id)
     await library_repo.delete(library_id)
     return {"success": True}

@@ -5,6 +5,7 @@ from django.contrib.auth.password_validation import validate_password
 from ninja import Field, Schema
 from pydantic import field_validator
 
+from app.domain.languages import get_language_display
 from app.domain.models import Voivodeship
 from app.domain.validators import validate_email_value, validate_person_name
 
@@ -94,23 +95,72 @@ class AuthorSchemaIn(Schema):
 class BookSchemaOut(Schema):
     id: int
     title: str
+    integration_source: int
+    data_source: str | None = None
+    google_id: str | None = None
     isbn: str | None = None
     publisher: str | None = None
     published_year: int | None = None
+    description: str | None = None
     page_count: int | None = None
+    print_type: str | None = None
+    category: str | None = None
     cover_url: str | None = None
     language: str | None = None
+    language_display: str | None = None
+    last_updated: datetime
     authors: list[AuthorSchemaOut]
+
+    @staticmethod
+    def from_book(book, authors: list[AuthorSchemaOut]) -> "BookSchemaOut":
+        return BookSchemaOut(
+            id=book.id,
+            title=book.title,
+            integration_source=book.integration_source,
+            data_source=book.data_source,
+            google_id=book.google_id,
+            isbn=book.isbn,
+            publisher=book.publisher,
+            published_year=book.published_year,
+            description=book.description,
+            page_count=book.page_count,
+            print_type=book.print_type,
+            category=book.category,
+            cover_url=book.cover_url,
+            language=book.language,
+            language_display=get_language_display(book.language),
+            last_updated=book.last_updated,
+            authors=authors,
+        )
 
 class BookSchemaIn(Schema):
     title: str
     isbn: str
+    integration_source: int = 0
+    data_source: str | None = None
+    google_id: str | None = None
     publisher: str | None = None
     published_year: int | None = None
+    description: str | None = None
     page_count: int | None = None
+    print_type: str | None = None
+    category: str | None = None
     cover_url: str | None = None
     language: str | None = None
     author_ids: list[int]
+
+
+class PaginatedBookSchemaOut(Schema):
+    items: list[BookSchemaOut]
+    page: int
+    page_size: int
+    total: int
+    total_pages: int
+
+
+class BookLanguageSchema(Schema):
+    code: str
+    display: str
 
 class LibrarySchemaOut(Schema):
     id: int
@@ -159,6 +209,12 @@ class ReservationSchemaOut(Schema):
 class ReservationSchemaIn(Schema):
     library_id: int
     book_id: int
+
+
+class ReservationUpdateSchema(Schema):
+    status_id: int | None = None
+    end_time: datetime | None = None
+    librarian_id: int | None = None
 
 class UserReservationSchemaOut(Schema):
     id: int

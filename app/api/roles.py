@@ -1,6 +1,7 @@
 
 from ninja import Router
 
+from app.api.permissions import require_superuser
 from app.api.serializers import RoleSchemaIn, RoleSchemaOut
 from app.domain.models import Role
 from app.domain.repositories import RoleRepository
@@ -15,6 +16,7 @@ async def list_roles(request):
 
 @router.post("", response=RoleSchemaOut)
 async def create_role(request, payload: RoleSchemaIn):
+    require_superuser(request)
     role = await role_repo.create(**payload.dict())
     return role
 
@@ -25,10 +27,12 @@ async def get_role(request, role_id: int):
 
 @router.put("/{role_id}", response=RoleSchemaOut)
 async def update_role(request, role_id: int, payload: RoleSchemaIn):
+    require_superuser(request)
     role = await role_repo.update(role_id, **payload.dict())
     return role
 
 @router.delete("/{role_id}")
 async def delete_role(request, role_id: int):
+    require_superuser(request)
     await role_repo.delete(role_id)
     return {"success": True}
