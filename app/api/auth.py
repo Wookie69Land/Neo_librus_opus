@@ -12,6 +12,7 @@ from django.db import IntegrityError, transaction
 from django.http import HttpResponseRedirect
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.utils import timezone
 from ninja import Query, Router, Schema
 from unidecode import unidecode
 
@@ -149,6 +150,8 @@ async def login(request, payload: LoginSchema):
             "library_id": library_id_part,
             "jti": secrets.token_hex(16),
         }
+        user.last_login = timezone.now()
+        await user.asave(update_fields=["last_login"])
         token_key = encode_token(payload)
         await SessionToken.objects.aupdate_or_create(
             user=user, defaults={"key": token_key}
