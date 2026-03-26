@@ -11,7 +11,7 @@ from django.core.exceptions import PermissionDenied
 from django.http import JsonResponse
 from ninja import NinjaAPI
 
-from . import auth, authors, books, libraries, reservations, roles, statuses, users
+from . import auth, authors, books, libraries, reservations, roles, search, statuses, users
 from .security import BearerTokenAuth
 
 api = NinjaAPI(
@@ -27,6 +27,7 @@ api = NinjaAPI(
 )
 
 api.add_router("/books", books.router)
+api.add_router("/search", search.router)
 api.add_router("/authors", authors.router)
 api.add_router("/libraries", libraries.router)
 api.add_router("/reservations", reservations.router)
