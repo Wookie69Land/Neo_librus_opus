@@ -110,7 +110,7 @@ async def register(request, payload: RegisterSchema):
     return 201, user
 
 
-@router.get("/activate", auth=None)
+@router.get("/activate", response={302: None, 400: dict}, auth=None)
 async def activate(request, uid: str = Query(...), token: str = Query(...)):
     try:
         uid_decoded = force_str(urlsafe_base64_decode(uid))
