@@ -180,7 +180,7 @@ EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 DEFAULT_FROM_EMAIL = env("EMAIL_HOST_USER", default="librarius.no.reply@gmail.com")
 ACCOUNT_ACTIVATION_SUCCESS_URL: Final[str] = env(
     "ACCOUNT_ACTIVATION_SUCCESS_URL",
-    default="https://www.librarius.nanys.pl/register-success",
+    default="https://librarius.nanys.pl/register-success",
 )
 
 # Mailgun Configuration (currently unused, kept for future reference)
