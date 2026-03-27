@@ -190,6 +190,11 @@ class Book(models.Model):
     language = models.CharField(
         max_length=10, blank=True, null=True, verbose_name=_("Language")
     )
+    google_checked = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name=_("Google Checked"),
+    )
     authors = models.ManyToManyField(
         Author, through='BookAuthor', related_name='books', verbose_name=_("Authors")
     )

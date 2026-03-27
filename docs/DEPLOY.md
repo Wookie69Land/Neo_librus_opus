@@ -164,7 +164,7 @@ from app.domain.models import LibraryUser
 LibraryUser.objects.create_superuser(
     username="admin",
     email="admin@example.com",
-  password="YourStrongPassword123!",
+    password="YourStrongPassword123!",
 )
 exit()
 ```
@@ -364,6 +364,8 @@ Runs two maintenance steps every day:
   - categories (`category`, appended without duplicates)
   - Google volume ID (`google_id`)
   - authors, but only in conservative correction scenarios
+  The job marks each processed book with `google_checked = true`, so the same
+  book is not sent to Google Books repeatedly on later daily runs.
 
 - library assignment step
   Finds books assigned to fewer than `2` libraries and randomly adds them to enough
@@ -436,8 +438,46 @@ docker compose -f docker-compose.prod.yml exec web python manage.py run_cyclic_t
 docker compose -f docker-compose.prod.yml exec web python manage.py show_cyclic_task_reports --task cyclic_book_manager
 ```
 
+Recent `book_enricher` reports include:
+
+- `examined`: how many books consumed one API attempt in that run
+- `no_match`: Google Books returned no acceptable volume for those books
+- `unchanged`: a match existed but did not improve stored metadata
+- `temporary_failures`: books deferred because Google Books returned retryable errors such as `429`
+- `samples`: a small sample of book IDs/titles from each outcome bucket
+
+Recent `library_assignment` reports include `assignment_samples`, which show a
+small sample of books and the library IDs added during that manager run.
+
 The same commands work locally if you replace `docker-compose.prod.yml` with the
 local compose file or run them directly from your local virtual environment.
+
+#### Task debugging
+
+When cyclic jobs stop appearing for a few days, collect the container lifecycle,
+worker logs, Redis logs, and timezone signals together:
+
+```bash
+# Show all container states, including exited ones
+docker compose -f docker-compose.prod.yml ps -a
+
+# Inspect the worker container start time, restart count, and current state
+docker inspect $(docker compose -f docker-compose.prod.yml ps -q worker) --format '{{.State.StartedAt}} restart={{.RestartCount}} status={{.State.Status}}'
+
+# Worker logs since the first missing day
+docker compose -f docker-compose.prod.yml logs --since "2026-03-22T00:00:00" worker
+
+# Redis logs from the same period
+docker compose -f docker-compose.prod.yml logs --since "2026-03-22T00:00:00" redis
+
+# Host time and timezone
+date
+timedatectl
+
+# Worker container time and timezone
+docker compose -f docker-compose.prod.yml exec worker date
+docker compose -f docker-compose.prod.yml exec worker env | grep '^TZ='
+```
 
 #### Google Books API quota
 

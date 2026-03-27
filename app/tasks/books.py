@@ -20,9 +20,12 @@ BOOK_SYNC_LIMIT = 250
 BOOK_SYNC_BATCH_SIZE = 10
 BOOK_SYNC_STOP_THRESHOLD = 5000
 BOOK_ENRICH_BATCH_SIZE = 100
+BOOK_ENRICH_TEMP_FAILURE_LIMIT = 3
+BOOK_ENRICH_REPORT_SAMPLE_SIZE = 10
 BOOK_LIBRARY_MIN_ASSIGNMENTS = 2
 BOOK_LIBRARY_MAX_ASSIGNMENTS = 5
 BOOK_CATEGORY_MAX_LENGTH = 511
+BOOK_LIBRARY_REPORT_SAMPLE_SIZE = 20
 
 
 def _report_retention_limit() -> int:
@@ -129,6 +132,11 @@ def _author_sync_needed(current_authors: list[str], proposed_authors: list[str])
     return False
 
 
+def _sample_append(bucket: list[dict[str, Any]], item: dict[str, Any], *, limit: int) -> None:
+    if len(bucket) < limit:
+        bucket.append(item)
+
+
 async def _cyclic_book_seeder_impl(ctx: dict[str, Any]) -> dict[str, Any]:
     """Run the ISBN importer daily until the catalog reaches the configured cap."""
 
@@ -174,27 +182,57 @@ async def _book_enricher_impl(ctx: dict[str, Any]) -> dict[str, Any]:
             | Q(google_id__isnull=True)
             | Q(google_id="")
         )
-        .order_by("last_updated")[:BOOK_ENRICH_BATCH_SIZE]
+        .filter(google_checked=False)
+        .order_by("last_updated", "id")[:BOOK_ENRICH_BATCH_SIZE]
     )
 
+    examined = 0
     enriched = 0
     author_updates = 0
     skipped = 0
+    no_match = 0
+    unchanged = 0
+    temporary_failures = 0
     api_unavailable = False
     warning: str | None = None
+    samples: dict[str, list[dict[str, Any]]] = {
+        "enriched": [],
+        "no_match": [],
+        "unchanged": [],
+        "temporary_failure": [],
+    }
 
     async for book in queryset:
+        examined += 1
         authors = [author.name async for author in book.authors.all()]
         try:
             best_match = await client.best_match(isbn=book.isbn, title=book.title, authors=authors)
         except GoogleBooksTemporaryError as exc:
-            api_unavailable = True
-            warning = str(exc)
+            temporary_failures += 1
             skipped += 1
-            break
+            warning = str(exc)
+            _sample_append(
+                samples["temporary_failure"],
+                {"id": book.id, "isbn": book.isbn, "title": book.title},
+                limit=BOOK_ENRICH_REPORT_SAMPLE_SIZE,
+            )
+            book.google_checked = True
+            await sync_to_async(book.save)(update_fields=["google_checked"])
+            if temporary_failures >= BOOK_ENRICH_TEMP_FAILURE_LIMIT:
+                api_unavailable = True
+                break
+            continue
 
         if best_match is None:
+            no_match += 1
             skipped += 1
+            _sample_append(
+                samples["no_match"],
+                {"id": book.id, "isbn": book.isbn, "title": book.title},
+                limit=BOOK_ENRICH_REPORT_SAMPLE_SIZE,
+            )
+            book.google_checked = True
+            await sync_to_async(book.save)(update_fields=["google_checked"])
             continue
 
         changed_fields: list[str] = []
@@ -210,23 +248,54 @@ async def _book_enricher_impl(ctx: dict[str, Any]) -> dict[str, Any]:
             book.category = merged_category
             changed_fields.append("category")
 
-        if changed_fields:
-            await sync_to_async(book.save)(update_fields=changed_fields)
-            enriched += 1
-
+        authors_changed = False
         if _author_sync_needed(authors, best_match.authors):
             authors_changed = await sync_to_async(sync_book_authors)(book, best_match.authors)
             if authors_changed:
                 author_updates += 1
 
+        if changed_fields or authors_changed:
+            enriched += 1 if changed_fields else 0
+            _sample_append(
+                samples["enriched"],
+                {
+                    "id": book.id,
+                    "isbn": book.isbn,
+                    "title": book.title,
+                    "updated_fields": changed_fields,
+                    "authors_updated": authors_changed,
+                },
+                limit=BOOK_ENRICH_REPORT_SAMPLE_SIZE,
+            )
+            book.google_checked = True
+            update_fields = [*changed_fields, "google_checked"]
+            await sync_to_async(book.save)(update_fields=update_fields)
+            continue
+
+        unchanged += 1
+        skipped += 1
+        _sample_append(
+            samples["unchanged"],
+            {"id": book.id, "isbn": book.isbn, "title": book.title},
+            limit=BOOK_ENRICH_REPORT_SAMPLE_SIZE,
+        )
+        book.google_checked = True
+        await sync_to_async(book.save)(update_fields=["google_checked"])
+
     result = {
         "status": "completed_with_warnings" if api_unavailable else "completed",
+        "examined": examined,
         "enriched": enriched,
         "author_updates": author_updates,
         "skipped": skipped,
+        "no_match": no_match,
+        "unchanged": unchanged,
+        "temporary_failures": temporary_failures,
+        "samples": samples,
     }
-    if api_unavailable and warning:
+    if warning:
         result["warning"] = warning
+    if api_unavailable:
         result["api_unavailable"] = True
     return result
 
@@ -248,6 +317,7 @@ async def _assign_books_to_random_libraries_impl(ctx: dict[str, Any]) -> dict[st
 
     assignments_created = 0
     processed_books = 0
+    assignment_samples: list[dict[str, Any]] = []
 
     for book in books:
         assigned_ids = {
@@ -264,6 +334,7 @@ async def _assign_books_to_random_libraries_impl(ctx: dict[str, Any]) -> dict[st
         if slots_to_fill <= 0:
             continue
 
+        created_library_ids: list[int] = []
         for library_id in random.sample(available_ids, slots_to_fill):
             _, created = await LibraryBook.objects.aget_or_create(
                 book=book,
@@ -272,13 +343,26 @@ async def _assign_books_to_random_libraries_impl(ctx: dict[str, Any]) -> dict[st
             )
             if created:
                 assignments_created += 1
+                created_library_ids.append(library_id)
 
         processed_books += 1
+        if created_library_ids:
+            _sample_append(
+                assignment_samples,
+                {
+                    "book_id": book.id,
+                    "isbn": book.isbn,
+                    "title": book.title,
+                    "created_library_ids": created_library_ids,
+                },
+                limit=BOOK_LIBRARY_REPORT_SAMPLE_SIZE,
+            )
 
     return {
         "status": "completed",
         "processed_books": processed_books,
         "assignments_created": assignments_created,
+        "assignment_samples": assignment_samples,
     }
 
 
