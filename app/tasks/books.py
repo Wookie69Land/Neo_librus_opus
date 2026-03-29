@@ -9,6 +9,7 @@ from typing import Any
 from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.core.management import call_command
+from django.db import close_old_connections
 from django.db.models import Count, Q
 from django.utils import timezone
 
@@ -30,6 +31,10 @@ BOOK_LIBRARY_REPORT_SAMPLE_SIZE = 20
 
 def _report_retention_limit() -> int:
     return max(getattr(settings, "CYCLIC_TASK_REPORT_RETENTION", 3), 1)
+
+
+async def _refresh_db_connections() -> None:
+    await sync_to_async(close_old_connections, thread_sensitive=True)()
 
 
 async def _prune_old_reports(task_name: str) -> None:
@@ -55,6 +60,7 @@ async def _save_task_report(
     finished_at,
     payload: dict[str, Any],
 ) -> None:
+    await _refresh_db_connections()
     duration_ms = max(int((finished_at - started_at).total_seconds() * 1000), 0)
     await CyclicTaskReport.objects.acreate(
         task_name=task_name,
@@ -65,6 +71,7 @@ async def _save_task_report(
         payload=payload,
     )
     await _prune_old_reports(task_name)
+    await _refresh_db_connections()
 
 
 async def _run_with_report(
@@ -72,6 +79,7 @@ async def _run_with_report(
     task_callable,
     ctx: dict[str, Any],
 ) -> dict[str, Any]:
+    await _refresh_db_connections()
     started_at = timezone.now()
     try:
         result = await task_callable(ctx)
@@ -97,6 +105,7 @@ async def _run_with_report(
         finished_at=finished_at,
         payload=result,
     )
+    await _refresh_db_connections()
     return result
 
 
