@@ -42,6 +42,6 @@ class WorkerSettings:
         database=env.int("REDIS_DATABASE", default=0),
     )
     cron_jobs = [
-        cron(cyclic_book_seeder, name="cyclic_book_seeder", hour=7, minute=0),
-        cron(cyclic_book_manager, name="cyclic_book_manager", hour=7, minute=15),
+        cron(cyclic_book_seeder, name="cyclic_book_seeder", hour={7, 19}, minute=0),
+        cron(cyclic_book_manager, name="cyclic_book_manager", hour={7, 19}, minute=15),
     ]

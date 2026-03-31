@@ -341,7 +341,9 @@ Configured daily jobs:
 
 ```text
 07:00  cyclic_book_seeder
+19:00  cyclic_book_seeder
 07:15  cyclic_book_manager
+19:15  cyclic_book_manager
 ```
 
 #### `cyclic_book_seeder`
