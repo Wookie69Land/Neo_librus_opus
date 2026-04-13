@@ -66,6 +66,41 @@ Validation rules:
 - first and last name must contain letters and may contain spaces, apostrophes, and hyphens
 - password must be at least 12 characters and include uppercase, digit, and special character
 
+How to call this endpoint:
+
+```bash
+curl -X POST http://localhost:8000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "StrongPass123!",
+    "first_name": "Jan",
+    "last_name": "Kowalski",
+    "region": 7
+  }'
+```
+
+Production example:
+
+```bash
+curl -X POST https://librarius-api.nanys.pl/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "StrongPass123!",
+    "first_name": "Jan",
+    "last_name": "Kowalski",
+    "region": 7
+  }'
+```
+
+Important request details:
+
+- use method `POST`
+- send header `Content-Type: application/json`
+- do not send Bearer token; this endpoint is public
+- `region` is optional, the rest of the fields are required
+
 Responses:
 
 - `201` — created, inactive user returned
@@ -147,7 +182,7 @@ Responses:
 
 Permission:
 
-- authenticated user required
+- public
 
 Query parameters:
 
@@ -165,6 +200,11 @@ Responses:
 
 - `200` — list of matching books
 - `422` — empty query string
+
+Notes:
+
+- this route is currently public in code
+- if you send a valid bearer token, each result's `libraries` array is ordered so the caller's region appears first
 
 ### GET `/search/books/advanced`
 
@@ -192,8 +232,11 @@ Supported query parameters:
 - `category`
 - `cover_url`
 - `language`
+- `languages` — repeated query parameter or comma-separated list
 - `author_id`
+- `author_ids` — repeated query parameter or comma-separated list
 - `author_name`
+- `author_names` — repeated query parameter or comma-separated list
 - `library_id`
 - `library_name`
 - `library_city`
@@ -206,6 +249,59 @@ Example:
 GET /api/search/books/advanced?author_name=sienkiewicz&library_city=warszawa&is_available=true
 Authorization: Bearer <signed_jwt_token>
 ```
+
+Multi-value examples:
+
+```http
+GET /api/search/books/advanced?languages=eng&languages=pol&author_names=Adam%20Mickiewicz&author_names=Witold%20Gombrowicz
+Authorization: Bearer <signed_jwt_token>
+```
+
+```http
+GET /api/search/books/advanced?author_ids=12,18&languages=eng,pol
+Authorization: Bearer <signed_jwt_token>
+```
+
+How to call this endpoint with `curl`:
+
+```bash
+curl -G http://localhost:8000/api/search/books/advanced \
+  -H "Authorization: Bearer <signed_jwt_token>" \
+  --data-urlencode "title=pan" \
+  --data-urlencode "languages=eng" \
+  --data-urlencode "languages=pol" \
+  --data-urlencode "author_names=Adam Mickiewicz" \
+  --data-urlencode "author_names=Witold Gombrowicz" \
+  --data-urlencode "library_city=Warszawa" \
+  --data-urlencode "is_available=true"
+```
+
+Equivalent production example:
+
+```bash
+curl -G https://librarius-api.nanys.pl/api/search/books/advanced \
+  -H "Authorization: Bearer <signed_jwt_token>" \
+  --data-urlencode "author_ids=12,18" \
+  --data-urlencode "languages=eng,pol" \
+  --data-urlencode "library_region=7"
+```
+
+Important request details:
+
+- use method `GET`
+- send header `Authorization: Bearer <signed_jwt_token>`
+- for repeated filters you can repeat the same query parameter many times
+- for multi-value filters you can also send comma-separated values in one parameter
+- spaces and Polish characters should be sent through `--data-urlencode` when using `curl`
+
+Responses:
+
+- `200` — list of matching books
+
+Notes:
+
+- each result includes `libraries` with live availability metadata
+- if the authenticated user has a region, matching-region libraries are sorted first
 
 Response shape for both search endpoints:
 
@@ -239,7 +335,9 @@ Response shape for both search endpoints:
         "name": "Biblioteka Narodowa",
         "city": "Warszawa",
         "region": 7,
-        "is_available": true
+        "is_available": true,
+        "availability_checked_at": "2026-04-13T18:30:00Z",
+        "availability_source": "mock-library-api"
       }
     ]
   }
@@ -248,16 +346,23 @@ Response shape for both search endpoints:
 
 ## Books Endpoints
 
-Permission for all book endpoints:
+Permission differs by route:
 
-- authenticated user required
-- no extra role restriction currently enforced
+- `GET /books` — public
+- `GET /books/{book_id}` — public
+- `GET /books/{book_id}/availability` — public
+- `GET /books/languages` — authenticated user required
+- `POST /books` — authenticated user required and library admin or superuser required
+- `PUT /books/{book_id}` — authenticated user required and library admin or superuser required
+- `DELETE /books/{book_id}` — authenticated user required and library admin or superuser required
 
 Routes:
 
 - `GET /books` — list all books
+- `GET /books/languages` — list normalized language codes present in stored books
 - `POST /books` — create a book
-- `GET /books/{book_id}` — fetch one book
+- `GET /books/{book_id}` — fetch one book with per-library availability
+- `GET /books/{book_id}/availability` — fetch only the live availability block for one book
 - `PUT /books/{book_id}` — update a book
 - `DELETE /books/{book_id}` — delete a book
 
@@ -280,6 +385,31 @@ Current notes:
 
 - ISBN is normalized before save
 - author links are recreated on update
+- `GET /books/{book_id}` now returns the base book payload plus a `libraries` array
+- availability checks currently use the mock source string `mock-library-api`
+- when a valid bearer token is provided on public availability endpoints, libraries from the caller's region are listed first
+
+Example availability response:
+
+```json
+{
+  "book_id": 1,
+  "title": "Quo Vadis",
+  "user_region": 7,
+  "checked_via": "mock-library-api",
+  "libraries": [
+    {
+      "id": 3,
+      "name": "Biblioteka Warszawa",
+      "city": "Warszawa",
+      "region": 7,
+      "is_available": true,
+      "availability_checked_at": "2026-04-13T18:30:00Z",
+      "availability_source": "mock-library-api"
+    }
+  ]
+}
+```
 
 ## Authors Endpoints
 
@@ -421,10 +551,34 @@ Allowed fields:
 
 Responses:
 
-- `200` — updated user
+- `200` — updated user plus refreshed token for self-service updates
 - `403` — permission denied
 - `404` — user not found
 - `422` — validation error
+
+Response shape:
+
+```json
+{
+  "user": {
+    "id": 7,
+    "username": "jkowalski",
+    "email": "updated@example.com",
+    "first_name": "Jan",
+    "last_name": "Kowalski",
+    "region": 11,
+    "is_active": true,
+    "date_joined": "2026-04-01T09:00:00Z",
+    "last_login": "2026-04-13T18:45:00Z"
+  },
+  "token": "<refreshed_jwt_token>"
+}
+```
+
+Notes:
+
+- the refreshed `token` is returned when a user updates their own profile
+- frontend clients should replace the current bearer token with the returned token after a successful self-update
 
 ### DELETE `/users/{user_id}`
 

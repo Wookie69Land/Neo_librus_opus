@@ -5,10 +5,12 @@ from ninja.errors import HttpError
 
 from app.api.permissions import require_library_admin_or_superuser
 from app.api.jwt_utils import decode_token
+from app.api.session_tokens import issue_user_session_token
 from app.api.serializers import (
     LibraryUserSchema,
     UserDetailSchema,
     UserUpdateSchema,
+    UserUpdateResponseSchema,
 )
 from app.domain.models import LibraryAdmin, LibraryUser, Reservation, SessionToken
 
@@ -19,6 +21,20 @@ def _parse_token(session_token: SessionToken) -> tuple[int, int, int]:
     """Extract (user_id, role_id, library_id) from the JWT stored in the token key."""
     claims = decode_token(session_token.key)
     return int(claims["sub"]), int(claims["role_id"]), int(claims["library_id"])
+
+
+def _serialize_library_user(user: LibraryUser) -> LibraryUserSchema:
+    return LibraryUserSchema(
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        region=user.region,
+        is_active=user.is_active,
+        date_joined=user.date_joined,
+        last_login=user.last_login,
+    )
 
 
 @router.get("/{user_id}", response={200: UserDetailSchema, 403: dict, 404: dict})
@@ -62,7 +78,15 @@ async def get_user(request, user_id: int):
     )
 
 
-@router.put("/{user_id}", response={200: LibraryUserSchema, 403: dict, 404: dict, 422: dict})
+@router.put(
+    "/{user_id}",
+    response={200: UserUpdateResponseSchema, 403: dict, 404: dict, 422: dict},
+    summary="Update user",
+    description=(
+        "Update editable user fields. When a user updates their own profile, the response also returns "
+        "a refreshed JWT token that should replace the current Authorization bearer token."
+    ),
+)
 async def update_user(request, user_id: int, payload: UserUpdateSchema):
     session: SessionToken = request.auth
     requester_id, _role_id, _library_id = _parse_token(session)
@@ -86,7 +110,11 @@ async def update_user(request, user_id: int, payload: UserUpdateSchema):
     except DjangoValidationError as exc:
         return 422, {"detail": exc.messages}
 
-    return 200, user
+    refreshed_token = None
+    if requester_id == user_id:
+        refreshed_token = await issue_user_session_token(user)
+
+    return 200, UserUpdateResponseSchema(user=_serialize_library_user(user), token=refreshed_token)
 
 
 @router.delete("/{user_id}", response={200: dict, 403: dict, 404: dict})

@@ -581,8 +581,54 @@ Expected response (`201`):
 }
 ```
 
+Detailed request notes:
+
+- method: `POST`
+- URL: `https://librarius-api.nanys.pl/api/auth/register`
+- required header: `Content-Type: application/json`
+- auth header is not required on this endpoint
+- body must be valid JSON
+- `region` is optional, the other fields are required
+
 An activation e-mail is sent to the provided address. If you don't have e-mail
 configured, activate manually (see Step 2b).
+
+---
+
+### Extra — Test advanced book search over REST API
+
+This endpoint requires a valid Bearer token from `/api/auth/login`.
+
+Example with repeated query parameters:
+
+```bash
+curl -G https://librarius-api.nanys.pl/api/search/books/advanced \
+  -H "Authorization: Bearer $TOKEN" \
+  --data-urlencode "languages=eng" \
+  --data-urlencode "languages=pol" \
+  --data-urlencode "author_names=Adam Mickiewicz" \
+  --data-urlencode "author_names=Witold Gombrowicz" \
+  --data-urlencode "library_city=Warszawa" \
+  --data-urlencode "is_available=true"
+```
+
+Example with comma-separated multi-value filters:
+
+```bash
+curl -G https://librarius-api.nanys.pl/api/search/books/advanced \
+  -H "Authorization: Bearer $TOKEN" \
+  --data-urlencode "author_ids=12,18" \
+  --data-urlencode "languages=eng,pol" \
+  --data-urlencode "library_region=7"
+```
+
+Request notes:
+
+- method: `GET`
+- URL: `https://librarius-api.nanys.pl/api/search/books/advanced`
+- required header: `Authorization: Bearer $TOKEN`
+- use `curl -G` so query params are appended to the URL
+- use `--data-urlencode` for values with spaces or non-ASCII characters
 
 ---
 

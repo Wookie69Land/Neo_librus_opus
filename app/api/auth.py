@@ -18,7 +18,8 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from ninja import Query, Router, Schema
 from unidecode import unidecode
 
-from app.api.jwt_utils import decode_token, encode_token
+from app.api.jwt_utils import decode_token
+from app.api.session_tokens import issue_user_session_token
 from app.api.serializers import LibraryUserSchema, LoginSchema, LogoutSchema, RegisterSchema
 from app.domain.models import LibraryAdmin, LibraryUser, SessionToken
 from app.domain.repositories import LibraryAdminRepository, LibraryUserRepository
@@ -60,7 +61,28 @@ async def generate_username(first_name, last_name):
         return f"{base_username}{max_number + 1}"
 
 
-@router.post("/register", response={201: LibraryUserSchema, 409: dict, 422: dict, 500: dict}, auth=None)
+@router.post(
+    "/register",
+    response={201: LibraryUserSchema, 409: dict, 422: dict, 500: dict},
+    auth=None,
+    summary="Register user",
+    description=(
+        "Create a new inactive user account and send an activation email. "
+        "Send a JSON body with email, password, first_name, last_name, and optional region.\n\n"
+        "Example request:\n"
+        "```bash\n"
+        "curl -X POST https://librarius-api.nanys.pl/api/auth/register \\\n"
+        "  -H \"Content-Type: application/json\" \\\n"
+        "  -d '{\n"
+        "    \"email\": \"user@example.com\",\n"
+        "    \"password\": \"StrongPass123!\",\n"
+        "    \"first_name\": \"Jan\",\n"
+        "    \"last_name\": \"Kowalski\",\n"
+        "    \"region\": 7\n"
+        "  }'\n"
+        "```"
+    ),
+)
 async def register(request, payload: RegisterSchema):
     if await LibraryUser.objects.filter(email=payload.email).aexists():
         return 409, {"detail": "A user with this email already exists."}
@@ -126,41 +148,21 @@ async def activate(request, uid: str = Query(...), token: str = Query(...)):
         return 400, {"detail": "Invalid activation link"}
 
 
-@router.post("/login", response={200: dict, 401: dict}, auth=None)
+@router.post(
+    "/login",
+    response={200: dict, 401: dict},
+    auth=None,
+    summary="Login user",
+    description="Authenticate with username or email plus password and receive a Bearer token.",
+)
 async def login(request, payload: LoginSchema):
     user = await user_repo.get_by_username_or_email(payload.login)
     if user and user.check_password(payload.password):
         if not user.is_active:
             return 401, {"detail": "Account not activated"}
-
-        # Determine role and library from the last LibraryAdmin entry
-        library_admin = await LibraryAdmin.objects.filter(user=user).order_by('added_at').alast()
-        if library_admin is None:
-            role_part = 0
-            library_id_part = 0
-        else:
-            role_part = library_admin.role_id
-            library_id_part = library_admin.library_id
-
-        # Build JWT payload
-        payload = {
-            "sub": str(user.id),
-            "username": user.username,
-            "email": user.email,
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-            "region": user.region,
-            "date_joined": user.date_joined.isoformat() if user.date_joined else None,
-            "role_id": role_part,
-            "library_id": library_id_part,
-            "jti": secrets.token_hex(16),
-        }
         user.last_login = timezone.now()
         await user.asave(update_fields=["last_login"])
-        token_key = encode_token(payload)
-        await SessionToken.objects.aupdate_or_create(
-            user=user, defaults={"key": token_key}
-        )
+        token_key = await issue_user_session_token(user)
 
         return {"token": token_key}
     return 401, {"detail": "Invalid credentials"}

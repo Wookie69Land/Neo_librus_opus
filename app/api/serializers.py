@@ -133,6 +133,34 @@ class BookSchemaOut(Schema):
             authors=authors,
         )
 
+
+class BookLibraryAvailabilitySchema(Schema):
+    id: int = Field(..., description="Library identifier.")
+    name: str = Field(..., description="Library display name.")
+    city: str | None = Field(None, description="Library city.")
+    region: int | None = Field(None, description=region_description)
+    is_available: bool = Field(..., description="Availability status returned by the latest check.")
+    availability_checked_at: datetime = Field(
+        ..., description="Timestamp when availability was last checked for this response."
+    )
+    availability_source: str = Field(..., description="Source that produced the availability result.")
+
+
+class BookDetailSchemaOut(BookSchemaOut):
+    libraries: list[BookLibraryAvailabilitySchema] = Field(
+        ..., description="Libraries that currently hold this book, ordered by user region when available."
+    )
+
+
+class BookAvailabilityResponseSchema(Schema):
+    book_id: int = Field(..., description="Book identifier.")
+    title: str = Field(..., description="Book title.")
+    user_region: int | None = Field(None, description=region_description)
+    checked_via: str = Field(..., description="Availability provider used to build the response.")
+    libraries: list[BookLibraryAvailabilitySchema] = Field(
+        ..., description="Libraries holding the book, ordered by region match and then by name."
+    )
+
 class BookSchemaIn(Schema):
     title: str
     isbn: str
@@ -290,3 +318,14 @@ class UserUpdateSchema(Schema):
         except DjangoValidationError as exc:
             raise ValueError(" ".join(exc.messages)) from exc
         return value
+
+
+class UserUpdateResponseSchema(Schema):
+    user: LibraryUserSchema
+    token: str | None = Field(
+        None,
+        description=(
+            "Refreshed JWT token. Returned for self-service updates so the client can replace the "
+            "current Authorization bearer token."
+        ),
+    )
