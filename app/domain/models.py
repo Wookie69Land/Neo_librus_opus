@@ -126,6 +126,9 @@ class Library(models.Model):
     class Meta:
         verbose_name = _("Library")
         verbose_name_plural = _("Libraries")
+        indexes = [
+            models.Index(fields=["region"], name="domain_library_region_idx"),
+        ]
 
     def clean(self) -> None:
         super().clean()
@@ -146,6 +149,9 @@ class Author(models.Model):
     class Meta:
         verbose_name = _("Author")
         verbose_name_plural = _("Authors")
+        indexes = [
+            models.Index(fields=["name"], name="domain_author_name_idx"),
+        ]
 
     def __str__(self):
         return self.name
@@ -202,6 +208,13 @@ class Book(models.Model):
     class Meta:
         verbose_name = _("Book")
         verbose_name_plural = _("Books")
+        indexes = [
+            models.Index(fields=["title", "id"], name="domain_book_title_id_idx"),
+            models.Index(fields=["integration_source"], name="domain_book_integ_idx"),
+            models.Index(fields=["published_year"], name="domain_book_pubyear_idx"),
+            models.Index(fields=["page_count"], name="domain_book_pagecnt_idx"),
+            models.Index(fields=["language"], name="domain_book_language_idx"),
+        ]
 
     def clean(self) -> None:
         super().clean()

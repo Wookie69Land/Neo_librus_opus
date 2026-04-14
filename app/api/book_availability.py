@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import random
 from datetime import timedelta
+from typing import Iterable
 
 from django.db.models import Case, IntegerField, Value, When
 from django.http import HttpRequest
@@ -82,8 +83,26 @@ async def get_book_library_availability(
     else:
         library_books = library_books.order_by("library__name", "library_id")
 
+    prefetched_library_books = [library_book async for library_book in library_books]
+    return await get_prefetched_book_library_availability(prefetched_library_books, user_region=user_region)
+
+
+async def get_prefetched_book_library_availability(
+    library_books: Iterable[LibraryBook],
+    *,
+    user_region: int | None,
+) -> list[BookLibraryAvailabilitySchema]:
+    ordered_library_books = sorted(
+        library_books,
+        key=lambda library_book: (
+            0 if user_region is not None and library_book.library.region == user_region else 1,
+            library_book.library.name,
+            library_book.library_id,
+        ),
+    )
+
     libraries: list[BookLibraryAvailabilitySchema] = []
-    async for library_book in library_books:
+    for library_book in ordered_library_books:
         libraries.append(await mock_library_api_availability_check(library_book))
 
     return libraries

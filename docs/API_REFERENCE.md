@@ -187,6 +187,8 @@ Permission:
 Query parameters:
 
 - `q` — required free-text query
+- `page` — optional, defaults to `1`
+- `page_size` — optional, defaults to `20`, maximum `50`
 
 Current matching fields, case-insensitive:
 
@@ -198,7 +200,7 @@ Current matching fields, case-insensitive:
 
 Responses:
 
-- `200` — list of matching books
+- `200` — paginated list of matching books
 - `422` — empty query string
 
 Notes:
@@ -214,6 +216,8 @@ Permission:
 
 Supported query parameters:
 
+- `page` — optional, defaults to `1`
+- `page_size` — optional, defaults to `20`, maximum `50`
 - `id`
 - `title`
 - `isbn`
@@ -296,7 +300,7 @@ Important request details:
 
 Responses:
 
-- `200` — list of matching books
+- `200` — paginated list of matching books
 
 Notes:
 
@@ -306,42 +310,48 @@ Notes:
 Response shape for both search endpoints:
 
 ```json
-[
-  {
-    "id": 1,
-    "title": "Quo Vadis",
-    "isbn": "9788324012345",
-    "integration_source": 20,
-    "data_source": "curated-polish-top100",
-    "google_id": null,
-    "publisher": "PIW",
-    "published_year": 1896,
-    "description": "...",
-    "page_count": 550,
-    "print_type": "PAPERBACK",
-    "category": "Powieść historyczna",
-    "cover_url": "https://...",
-    "language": "pol",
-    "last_updated": "2026-03-26T10:00:00Z",
-    "authors": [
-      {
-        "id": 5,
-        "name": "Henryk Sienkiewicz"
-      }
-    ],
-    "libraries": [
-      {
-        "id": 1,
-        "name": "Biblioteka Narodowa",
-        "city": "Warszawa",
-        "region": 7,
-        "is_available": true,
-        "availability_checked_at": "2026-04-13T18:30:00Z",
-        "availability_source": "mock-library-api"
-      }
-    ]
-  }
-]
+{
+  "items": [
+    {
+      "id": 1,
+      "title": "Quo Vadis",
+      "isbn": "9788324012345",
+      "integration_source": 20,
+      "data_source": "curated-polish-top100",
+      "google_id": null,
+      "publisher": "PIW",
+      "published_year": 1896,
+      "description": "...",
+      "page_count": 550,
+      "print_type": "PAPERBACK",
+      "category": "Powieść historyczna",
+      "cover_url": "https://...",
+      "language": "pol",
+      "last_updated": "2026-03-26T10:00:00Z",
+      "authors": [
+        {
+          "id": 5,
+          "name": "Henryk Sienkiewicz"
+        }
+      ],
+      "libraries": [
+        {
+          "id": 1,
+          "name": "Biblioteka Narodowa",
+          "city": "Warszawa",
+          "region": 7,
+          "is_available": true,
+          "availability_checked_at": "2026-04-13T18:30:00Z",
+          "availability_source": "mock-library-api"
+        }
+      ]
+    }
+  ],
+  "page": 1,
+  "page_size": 20,
+  "total": 1,
+  "total_pages": 1
+}
 ```
 
 ## Books Endpoints

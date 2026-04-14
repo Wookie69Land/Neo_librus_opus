@@ -109,10 +109,11 @@ class BookAvailabilityApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
 
-        self.assertEqual(len(payload), 1)
-        self.assertEqual(payload[0]["id"], self.book.id)
-        self.assertEqual(payload[0]["libraries"][0]["name"], "Biblioteka Warszawa")
-        self.assertEqual(payload[0]["libraries"][1]["name"], "Biblioteka Gdansk")
+        self.assertEqual(payload["total"], 1)
+        self.assertEqual(payload["page"], 1)
+        self.assertEqual(payload["items"][0]["id"], self.book.id)
+        self.assertEqual(payload["items"][0]["libraries"][0]["name"], "Biblioteka Warszawa")
+        self.assertEqual(payload["items"][0]["libraries"][1]["name"], "Biblioteka Gdansk")
 
 
 class AdvancedBookSearchApiTests(TestCase):
@@ -154,7 +155,7 @@ class AdvancedBookSearchApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
 
-        self.assertEqual({item["title"] for item in payload}, {"Pan Tadeusz", "Ferdydurke"})
+        self.assertEqual({item["title"] for item in payload["items"]}, {"Pan Tadeusz", "Ferdydurke"})
 
     def test_advanced_search_supports_multiple_author_ids(self) -> None:
         response = self.client.get(
@@ -166,7 +167,23 @@ class AdvancedBookSearchApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
 
-        self.assertEqual({item["title"] for item in payload}, {"Pan Tadeusz", "Ferdydurke"})
+        self.assertEqual({item["title"] for item in payload["items"]}, {"Pan Tadeusz", "Ferdydurke"})
+
+    def test_advanced_search_paginates_results(self) -> None:
+        response = self.client.get(
+            "/api/search/books/advanced",
+            {"page": 2, "page_size": 1},
+            **self._auth_headers(),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+
+        self.assertEqual(payload["page"], 2)
+        self.assertEqual(payload["page_size"], 1)
+        self.assertEqual(payload["total"], 3)
+        self.assertEqual(payload["total_pages"], 3)
+        self.assertEqual(len(payload["items"]), 1)
 
 
 class UserUpdateApiTests(TestCase):

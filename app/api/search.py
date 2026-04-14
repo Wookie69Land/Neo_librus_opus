@@ -3,16 +3,16 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from django.db.models import Q, QuerySet
+from django.db.models import Prefetch, Q, QuerySet
 from ninja import Field, Query, Router, Schema
 from ninja.errors import HttpError
 from pydantic import field_validator
 
-from app.api.book_availability import get_book_library_availability, get_request_user_region
+from app.api.book_availability import get_prefetched_book_library_availability, get_request_user_region
 from app.api.serializers import AuthorSchemaOut, BookLibraryAvailabilitySchema
 from app.domain.languages import get_language_display, normalize_language_code
 from app.domain.isbn import normalise_isbn
-from app.domain.models import Book
+from app.domain.models import Author, Book, LibraryBook
 
 router = Router(tags=["Search"])
 
@@ -42,6 +42,8 @@ class BookSearchResultSchema(Schema):
 
 class SimpleBookSearchQuery(Schema):
     q: str = Field(..., description="Free-text query matched against title, category, publisher, authors, and ISBN.")
+    page: int = Field(1, description="Page number, starting from 1.")
+    page_size: int = Field(20, description="Number of results per page. Maximum 50.")
 
 
 class AdvancedBookSearchQuery(Schema):
@@ -82,6 +84,8 @@ class AdvancedBookSearchQuery(Schema):
     library_city: str | None = Field(None, description="Substring match on linked library city.")
     library_region: int | None = Field(None, description="Only books linked to libraries in the given region.")
     is_available: bool | None = Field(None, description="Filter by current library-book availability flag.")
+    page: int = Field(1, description="Page number, starting from 1.")
+    page_size: int = Field(20, description="Number of results per page. Maximum 50.")
 
     @field_validator("languages", "author_names", mode="before")
     @classmethod
@@ -114,12 +118,27 @@ def _normalize_multi_string_values(value: Any) -> list[str] | None:
     return normalized_values or None
 
 
+class PaginatedBookSearchSchema(Schema):
+    items: list[BookSearchResultSchema]
+    page: int
+    page_size: int
+    total: int
+    total_pages: int
+
+
+def _get_prefetched_related_objects(book: Book, relation_name: str):
+    return getattr(book, "_prefetched_objects_cache", {}).get(relation_name, [])
+
+
 async def _serialize_book(book: Book, *, user_region: int | None) -> BookSearchResultSchema:
     authors = [
         AuthorSchemaOut(id=author.id, name=author.name)
-        async for author in book.authors.all().order_by("name")
+        for author in _get_prefetched_related_objects(book, "authors")
     ]
-    libraries = await get_book_library_availability(book.id, user_region=user_region)
+    libraries = await get_prefetched_book_library_availability(
+        _get_prefetched_related_objects(book, "librarybook_set"),
+        user_region=user_region,
+    )
 
     return BookSearchResultSchema(
         id=book.id,
@@ -144,16 +163,53 @@ async def _serialize_book(book: Book, *, user_region: int | None) -> BookSearchR
 
 
 def _base_search_queryset() -> QuerySet[Book]:
-    return Book.objects.all().distinct().order_by("title", "id")
+    return Book.objects.all().order_by("title", "id")
+
+
+def _search_prefetches() -> tuple[Prefetch, Prefetch]:
+    return (
+        Prefetch("authors", queryset=Author.objects.order_by("name")),
+        Prefetch("librarybook_set", queryset=LibraryBook.objects.select_related("library", "book")),
+    )
+
+
+async def _paginate_search_results(
+    books: QuerySet[Book],
+    *,
+    page: int,
+    page_size: int,
+    user_region: int | None,
+) -> PaginatedBookSearchSchema:
+    page = max(page, 1)
+    page_size = min(max(page_size, 1), 50)
+
+    distinct_books = books.distinct()
+    total = await distinct_books.acount()
+    start = (page - 1) * page_size
+    end = start + page_size
+
+    paginated_books = [
+        book
+        async for book in distinct_books.prefetch_related(*_search_prefetches())[start:end]
+    ]
+    items = [await _serialize_book(book, user_region=user_region) for book in paginated_books]
+    total_pages = max((total + page_size - 1) // page_size, 1)
+    return PaginatedBookSearchSchema(
+        items=items,
+        page=page,
+        page_size=page_size,
+        total=total,
+        total_pages=total_pages,
+    )
 
 
 @router.get(
     "/books",
-    response={200: list[BookSearchResultSchema], 422: dict},
+    response={200: PaginatedBookSearchSchema, 422: dict},
     auth=None,
     summary="Search books",
     description=(
-        "Run a simple free-text search across titles, categories, publishers, authors, and ISBNs. "
+        "Run a paginated free-text search across titles, categories, publishers, authors, and ISBNs. "
         "If a Bearer token is supplied, matching-region libraries are shown first in each result."
     ),
 )
@@ -176,15 +232,20 @@ async def search_books(request, params: SimpleBookSearchQuery = Query(...)):
 
     books = _base_search_queryset().filter(predicates)
     user_region = await get_request_user_region(request)
-    return [_serialize async for _serialize in _serialized_books(books, user_region=user_region)]
+    return await _paginate_search_results(
+        books,
+        page=params.page,
+        page_size=params.page_size,
+        user_region=user_region,
+    )
 
 
 @router.get(
     "/books/advanced",
-    response=list[BookSearchResultSchema],
+    response=PaginatedBookSearchSchema,
     summary="Advanced book search",
     description=(
-        "Filter books using detailed metadata, author, and library criteria. "
+        "Filter books using detailed metadata, author, and library criteria with paginated results. "
         "Use a Bearer token in the Authorization header. "
         "Multi-value filters can be sent as repeated query parameters or comma-separated values. "
         "Authenticated access is required because this route uses the API-wide Bearer auth.\n\n"
@@ -281,9 +342,9 @@ async def advanced_search_books(request, params: AdvancedBookSearchQuery = Query
         books = books.filter(librarybook__is_available=params.is_available)
 
     user_region = await get_request_user_region(request)
-    return [_serialize async for _serialize in _serialized_books(books, user_region=user_region)]
-
-
-async def _serialized_books(books: QuerySet[Book], *, user_region: int | None):
-    async for book in books:
-        yield await _serialize_book(book, user_region=user_region)
+    return await _paginate_search_results(
+        books,
+        page=params.page,
+        page_size=params.page_size,
+        user_region=user_region,
+    )
