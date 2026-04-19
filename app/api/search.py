@@ -43,7 +43,7 @@ class BookSearchResultSchema(Schema):
 class SimpleBookSearchQuery(Schema):
     q: str = Field(..., description="Free-text query matched against title, category, publisher, authors, and ISBN.")
     page: int = Field(1, description="Page number, starting from 1.")
-    page_size: int = Field(20, description="Number of results per page. Maximum 50.")
+    page_size: int = Field(20, description="Number of results per page. Maximum 100.")
 
 
 class AdvancedBookSearchQuery(Schema):
@@ -85,7 +85,7 @@ class AdvancedBookSearchQuery(Schema):
     library_region: int | None = Field(None, description="Only books linked to libraries in the given region.")
     is_available: bool | None = Field(None, description="Filter by current library-book availability flag.")
     page: int = Field(1, description="Page number, starting from 1.")
-    page_size: int = Field(20, description="Number of results per page. Maximum 50.")
+    page_size: int = Field(20, description="Number of results per page. Maximum 100.")
 
     @field_validator("languages", "author_names", mode="before")
     @classmethod
@@ -181,7 +181,7 @@ async def _paginate_search_results(
     user_region: int | None,
 ) -> PaginatedBookSearchSchema:
     page = max(page, 1)
-    page_size = min(max(page_size, 1), 50)
+    page_size = min(max(page_size, 1), 100)
 
     distinct_books = books.distinct()
     total = await distinct_books.acount()

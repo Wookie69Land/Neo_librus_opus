@@ -60,7 +60,10 @@ async def get_user(request, user_id: int):
     active_reservations = [
         r async for r in Reservation.objects.select_related(
             "status", "library", "book"
-        ).filter(reader_id=user_id, end_time__isnull=True)
+        ).filter(
+            reader_id=user_id,
+            end_time__isnull=True,
+        ).exclude(status__name__iexact="archived")
     ]
 
     return 200, UserDetailSchema(

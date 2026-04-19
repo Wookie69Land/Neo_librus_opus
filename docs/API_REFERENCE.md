@@ -477,13 +477,16 @@ Create/update body:
 Permission:
 
 - authenticated user required
-- no extra role restriction currently enforced
+- list: returns only current user's reservations, or reservations from libraries the current user administers
+- create: authenticated user can create reservation
+- update/delete: only library admin for the reservation's library
 
 Routes:
 
 - `GET /reservations`
 - `POST /reservations`
 - `GET /reservations/{reservation_id}`
+- `PUT /reservations/{reservation_id}`
 - `DELETE /reservations/{reservation_id}`
 
 Create body:
@@ -497,7 +500,21 @@ Create body:
 
 Current behavior:
 
-- the reservation creator is intended to become the reader automatically
+- reservation creator becomes the `reader` automatically
+- reservation creation requires the selected `book_id` to exist in the selected `library_id`
+- list endpoint omits reservations with status `archived`
+- if there are no related reservations for the current user scope, list returns an empty array `[]`
+
+Workflow statuses:
+
+- `pending` -> `accepted` -> `picked_up` -> `closed`
+- every status can be moved to `archived` through the delete endpoint
+
+Permissions and state changes:
+
+- create: any authenticated user
+- update status: only a library admin assigned to the reservation's library
+- delete: soft-delete only, implemented as status change to `archived` (record is not physically removed)
 
 ## Roles Endpoints
 
