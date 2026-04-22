@@ -43,6 +43,10 @@ if SENTRY_DSN:
 # Security-related settings
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
+CSRF_TRUSTED_ORIGINS = env.list(
+    "CSRF_TRUSTED_ORIGINS",
+    default=["https://librarius-api.nanys.pl"],
+)
 
 # Placeholder AWS/S3 static/media storage settings
 AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME", default="")

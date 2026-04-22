@@ -81,6 +81,9 @@ htmlcov/
 dist/
 build/
 
+# Temporary / working data files
+tmp/
+
 # Ignore instructions and local-only agent files
 INSTRUCTIONS.md
 TODO.md
