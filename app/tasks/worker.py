@@ -11,6 +11,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", os.getenv("DJANGO_SETTINGS_MODUL
 django.setup()
 
 from app.core.settings.base import env
+from app.tasks.ai import run_ai_recommendation_pipeline
 from app.tasks.books import (
     assign_books_to_random_libraries,
     book_enricher,
@@ -29,11 +30,13 @@ async def startup(ctx: dict) -> None:
 class WorkerSettings:
     """ARQ worker settings and cron schedule."""
 
+    keep_result = 3600  # keep job results in Redis for 1 hour
     functions = [
         cyclic_book_seeder,
         cyclic_book_manager,
         book_enricher,
         assign_books_to_random_libraries,
+        run_ai_recommendation_pipeline,
     ]
     on_startup = startup
     redis_settings = RedisSettings(

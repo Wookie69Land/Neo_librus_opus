@@ -352,3 +352,40 @@ def get_language_display(value: str | None) -> str | None:
     if normalized is None:
         return None
     return LANGUAGE_DISPLAY_MAP.get(normalized, normalized.upper())
+
+
+# Mapping from ISO 639-1 (2-letter) to the ISO 639-3 code stored in the database.
+_ISO_639_1_TO_639_3: dict[str, str] = {
+    "pl": "pol", "en": "eng", "de": "ger", "fr": "fre", "es": "spa",
+    "it": "ita", "ru": "rus", "uk": "ukr", "cs": "ces", "sk": "slk",
+    "be": "bel", "la": "lat", "ar": "ara", "zh": "chi", "ja": "jpn",
+    "ko": "kor", "pt": "por", "nl": "nld", "sv": "swe", "no": "nor",
+    "da": "dan", "fi": "fin", "hu": "hun", "ro": "rum", "bg": "bul",
+    "hr": "hrv", "sr": "srp", "sl": "slv", "lt": "lit", "lv": "lav",
+    "et": "est", "el": "ell", "tr": "tur", "he": "heb", "vi": "vie",
+    "th": "tha", "id": "ind", "ms": "may", "fa": "per", "ka": "geo",
+    "af": "afr", "sq": "alb", "hy": "arm", "az": "aze", "bs": "bos",
+    "ca": "cat", "eu": "baq", "bn": "ben", "my": "bur",
+}
+
+
+def normalize_language_to_iso3(code: str | None) -> str | None:
+    """Convert an ISO 639-1 two-letter code to ISO 639-3 used in the database.
+
+    The library catalogue stores language codes in ISO 639-3 (three-letter) format.
+    The LLM and the API accept ISO 639-1 (two-letter) codes. This function
+    normalises the code before it is used in database queries.
+
+    Args:
+        code: A language code in ISO 639-1 or ISO 639-3 format, or None.
+
+    Returns:
+        The ISO 639-3 equivalent, or the original code if it is already 3+ letters.
+        Returns None when ``code`` is None or empty.
+    """
+    if not code:
+        return None
+    normalized = code.strip().lower()
+    if len(normalized) == 2:
+        return _ISO_639_1_TO_639_3.get(normalized, normalized)
+    return normalized

@@ -28,6 +28,7 @@ dependencies = [
     "langgraph>=0.2",               # Stateful AI Workflows
     "langchain>=0.2",               # AI Tooling
     "langchain-openai>=0.1",        # OpenAI Integration
+    "langchain-google-genai>=4.0",  # Google Gemini Integration
     # ⚡ Background Tasks
     "arq>=0.26",                    # Async Task Queue
     "redis>=5.0",                   # Redis Client

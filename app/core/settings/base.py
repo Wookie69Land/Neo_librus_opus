@@ -118,6 +118,54 @@ GOOGLE_BOOKS_API_KEY: Final[str] = env("GOOGLE_BOOKS_API_KEY", default="")
 GOOGLE_BOOKS_TIMEOUT: Final[float] = env.float("GOOGLE_BOOKS_TIMEOUT", default=15.0)
 CYCLIC_TASK_REPORT_RETENTION: Final[int] = env.int("CYCLIC_TASK_REPORT_RETENTION", default=3)
 
+# AI / LLM Configuration
+# Provider: 'groq' (free tier, Llama models) or 'gemini' (Google)
+AI_PROVIDER: Final[str] = env("AI_PROVIDER", default="groq")
+# Node 1 – query understanding: fast, lightweight NLP — extract keywords/intent/language
+# Groq defaults: llama-3.3-70b-versatile | Gemini fallback: gemini-2.0-flash
+AI_MODEL_QUERY: Final[str] = env("AI_MODEL_QUERY", default="llama-3.3-70b-versatile")
+# Node 2 – statistical analysis: stronger reasoning — score up to 50 books for relevance
+# Groq defaults: llama-3.3-70b-versatile | Gemini fallback: gemini-2.5-flash
+AI_MODEL_STATS: Final[str] = env("AI_MODEL_STATS", default="llama-3.3-70b-versatile")
+# Node 3 – response composition: highest quality for personalised user-facing text
+# Groq defaults: llama-3.3-70b-versatile | Gemini fallback: gemini-2.5-pro
+AI_MODEL_RESPONSE: Final[str] = env("AI_MODEL_RESPONSE", default="llama-3.3-70b-versatile")
+AI_TIMEOUT_SECONDS: Final[int] = env.int("AI_TIMEOUT_SECONDS", default=60)
+AI_MAX_TOKENS: Final[int] = env.int("AI_MAX_TOKENS", default=2048)
+GEMINI_API_KEY: Final[str] = env("GEMINI_API_KEY", default="")
+GROQ_API_KEY: Final[str] = env("GROQ_API_KEY", default="")
+
+
+# Logging
+LOGGING: dict[str, Any] = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "[%(asctime)s] %(levelname)s %(name)s: %(message)s",
+            "datefmt": "%Y-%m-%dT%H:%M:%S",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "loggers": {
+        # All project code — INFO and above (DEBUG visible during development)
+        "app": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "WARNING",
+    },
+}
+
 
 # Use custom user model from domain app
 AUTH_USER_MODEL: Final[str] = "domain.LibraryUser"
