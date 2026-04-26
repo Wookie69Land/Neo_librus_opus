@@ -55,9 +55,9 @@ Client polls until status = "completed"
 
 | Property   | Value |
 |------------|-------|
-| **Model**  | `llama-3.1-8b-instant` (env: `AI_MODEL_QUERY`) |
+| **Model**  | `llama-3.3-70b-versatile` (env: `AI_MODEL_QUERY`) |
 | **Role**   | `LLMRole.QUERY` |
-| **Task**   | Light NLP — parse free text into structured search parameters |
+| **Task**   | NLP — parse free text into structured search parameters |
 
 **Input state fields:**
 - `raw_query` — the user's original free-text string
@@ -70,7 +70,7 @@ Client polls until status = "completed"
 - `audience` — `"children"` | `"young_adult"` | `"adult"` | `"academic"` | `null`
 - `period_from` / `period_to` — inferred publication year range (both nullable)
 
-**Why `llama-3.1-8b-instant`:** The task is structured JSON extraction from short text. It is latency-sensitive (runs first in the chain) and does not require deep reasoning — the 8B model running on Groq's hardware is ideal: fast, free, and sufficient for NLP extraction.
+**Why `llama-3.3-70b-versatile`:** The task is structured JSON extraction from short text, but consistent keyword quality and language detection benefit from a stronger model. Llama 3.3 70B on Groq's hardware delivers reliable structured output while remaining free-tier eligible.
 
 **Fallback:** If the LLM call fails or returns malformed output, raw keywords are extracted by splitting the query on whitespace. The node sets a `node_errors` entry but does not abort the pipeline.
 
@@ -81,7 +81,7 @@ Client polls until status = "completed"
 | Property   | Value |
 |------------|-------|
 | **Model**  | None — pure database query |
-| **Task**   | Retrieve up to 50 book candidates from the DB matching extracted keywords |
+| **Task**   | Retrieve up to 25 book candidates from the DB matching extracted keywords |
 
 **Input state fields:**
 - `extracted_keywords`, `language_hint`, `audience`, `period_from`, `period_to`
@@ -89,7 +89,7 @@ Client polls until status = "completed"
 
 **Output state fields:**
 - `candidate_books` — list of book metadata dicts (title, authors, ISBN, language, category, availability per library)
-- `total_candidates` — count of candidates fetched
+- `total_candidates` — count of candidates fetched (capped at 25)
 - `categories_found` / `languages_found` — unique values in the candidate set
 
 **Implementation:** `RecommendationRepository.fetch_candidates()` — uses Django ORM with full-text / keyword matching and `prefetch_related` for availability data.
@@ -106,13 +106,13 @@ Client polls until status = "completed"
 
 **Input state fields:**
 - `normalized_intent` — the refined search intent from Node 1
-- `candidate_books` — all metadata for up to 50 candidates
+- `candidate_books` — all metadata for up to 25 candidates
 
 **Output state fields:**
 - `scored_candidates` — list of `{book_id, relevance_score, reasoning}` dicts
 - `statistical_analysis` — narrative summary of the candidate pool
 
-**Why `llama-3.3-70b-versatile`:** This node receives a large structured payload (up to 50 books as JSON) and must reason across all candidates simultaneously to produce consistent comparative scores. Llama 3.3 70B running on Groq provides strong reasoning capability and extended context window, while remaining fully free to use.
+**Why `llama-3.3-70b-versatile`:** This node receives a structured payload (up to 25 books as JSON) and must reason across all candidates simultaneously to produce consistent comparative scores. Llama 3.3 70B running on Groq provides strong reasoning capability and extended context window, while remaining fully free to use.
 
 **Scoring rules:** Scores are assigned on textual/thematic relevance only — availability is explicitly excluded to avoid biasing recommendations toward popular books.
 
@@ -150,9 +150,9 @@ Client polls until status = "completed"
 
 | Node | Task | Model | Rationale |
 |------|------|-------|-----------|
-| `understand_query` | NLP intent extraction | `llama-3.1-8b-instant` (Groq) | Fast, free, sufficient for JSON extraction |
+| `understand_query` | NLP intent extraction | `llama-3.3-70b-versatile` (Groq) | Reliable structured output, free tier |
 | `fetch_candidates` | DB query | — | Pure ORM, no LLM |
-| `analyze_statistics` | Relevance scoring (up to 50 books) | `llama-3.3-70b-versatile` (Groq) | Strong reasoning, large context, free tier |
+| `analyze_statistics` | Relevance scoring (up to 25 books) | `llama-3.3-70b-versatile` (Groq) | Strong reasoning, large context, free tier |
 | `compose_response` | Personalised recommendation text | `llama-3.3-70b-versatile` (Groq) | Best free-tier language quality |
 
 ---
@@ -260,16 +260,16 @@ ARQ worker picks up job
   RecommendationState initialised
   { request_id, raw_query, max_results, language, include_unavailable }
         │
-        ▼ [understand_query — gemini-2.0-flash]
+        ▼ [understand_query — llama-3.3-70b-versatile (Groq)]
   + normalized_intent, extracted_keywords, language_hint, audience, period_from/to
         │
         ▼ [fetch_candidates — DB only]
   + candidate_books (up to 50), total_candidates, categories_found, languages_found
         │
-        ▼ [analyze_statistics — gemini-2.5-flash-preview]
+        ▼ [analyze_statistics — llama-3.3-70b-versatile (Groq)]
   + scored_candidates [{book_id, relevance_score, reasoning}], statistical_analysis
         │
-        ▼ [compose_response — gemini-2.5-pro]
+        ▼ [compose_response — llama-3.3-70b-versatile (Groq)]
   + query_interpretation, final_recommendations [{book_id, why_recommended}], stats_narrative
         │
         ▼
@@ -290,7 +290,7 @@ All AI settings are read from environment variables (see `app/core/settings/base
 | `GROQ_API_KEY` | `""` | Groq API key — obtain free at [console.groq.com](https://console.groq.com/) |
 | `GEMINI_API_KEY` | `""` | Google Generative AI API key (only needed when `AI_PROVIDER=gemini`) |
 | `AI_PROVIDER` | `groq` | LLM provider — `groq` or `gemini` |
-| `AI_MODEL_QUERY` | `llama-3.1-8b-instant` | Model for the query understanding node |
+| `AI_MODEL_QUERY` | `llama-3.3-70b-versatile` | Model for the query understanding node |
 | `AI_MODEL_STATS` | `llama-3.3-70b-versatile` | Model for the statistical analysis node |
 | `AI_MODEL_RESPONSE` | `llama-3.3-70b-versatile` | Model for the response composition node |
 | `AI_TIMEOUT_SECONDS` | `60` | Per-node LLM call timeout |
@@ -350,7 +350,7 @@ The `error` field in the API response is populated from the ARQ job's exception 
 
 - **Vector search:** Current candidate retrieval is keyword/ORM-based. Switching to embedding-based vector search (e.g. pgvector + `text-embedding-004`) would significantly improve semantic recall.
 - **Rate limiting:** No per-user rate limiting on the recommendation endpoint yet.
-- **Retry policy:** LLM calls have no automatic retry with backoff; a transient Gemini error will fail the node.
+- **Retry policy:** LLM calls have no automatic retry with backoff; a transient provider error will fail the node.
 - **Streaming:** The pipeline returns the full result in one batch. Streaming node-by-node progress to the client is not implemented.
-- **Multi-language prompts:** Prompts are in English regardless of `language_hint`; Gemini handles translation internally but a language-aware prompt could improve output quality.
+- **Multi-language prompts:** Prompts are in English regardless of `language_hint`; the LLM handles translation internally but a language-aware prompt could improve output quality.
 - **Tests:** Integration tests for the pipeline nodes are pending (see `TODO.md`).

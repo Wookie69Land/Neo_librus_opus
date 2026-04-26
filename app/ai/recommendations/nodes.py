@@ -148,7 +148,7 @@ async def fetch_candidates(state: RecommendationState) -> dict:
         include_unavailable=include_unavailable,
         period_from=period_from,
         period_to=period_to,
-        limit=50,
+        limit=25,
     )
 
     # Fallback: if language filter + keywords produced nothing, retry without language.
@@ -164,7 +164,7 @@ async def fetch_candidates(state: RecommendationState) -> dict:
             include_unavailable=include_unavailable,
             period_from=period_from,
             period_to=period_to,
-            limit=50,
+            limit=25,
         )
 
     categories: list[str] = list({

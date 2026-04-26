@@ -11,6 +11,7 @@ Main capabilities:
 - authenticated search endpoints for simple and advanced book search
 - scheduled background jobs for ISBN imports, Google Books enrichment, and random library assignment
 - curated seed commands for Polish books and libraries
+- AI-powered book recommendations via a LangGraph pipeline (Groq/Gemini LLMs, ARQ background queue)
 
 ## Current Stack
 
@@ -20,16 +21,20 @@ Main capabilities:
 - MySQL `8.x`
 - Redis `7.x`
 - ARQ for background jobs
+- LangGraph + LangChain for the AI recommendation pipeline
+- Groq (default) or Google Gemini as LLM providers
 - Docker Compose for local and production-like environments
 
 ## Repository Layout
 
 - `app/api/` — HTTP API routers, serializers, auth, and security
 - `app/domain/` — Django models, domain services, management commands, and seed data
+- `app/ai/` — LangGraph recommendation pipeline (client, graph, nodes, prompts, schemas, state)
 - `app/tasks/` — ARQ worker configuration and cyclic job implementations
 - `app/core/settings/` — Django settings for local and production
 - `DEPLOY.md` — deployment and operations guide
 - `docs/API_REFERENCE.md` — detailed API documentation with permissions and examples
+- `docs/AI_FLOW.md` — AI recommendation pipeline architecture, node descriptions, and configuration
 
 ## Authentication Model
 
@@ -168,6 +173,7 @@ ARQ worker jobs currently include:
 - `cyclic_book_manager`
 - `book_enricher`
 - `assign_books_to_random_libraries`
+- `run_ai_recommendation_pipeline` (enqueued per API request)
 
 Worker entrypoint:
 
@@ -181,3 +187,4 @@ Use:
 
 - [DEPLOY.md](DEPLOY.md) for deployment, environment variables, production commands, and smoke tests
 - [docs/API_REFERENCE.md](docs/API_REFERENCE.md) for endpoint-by-endpoint API usage and current permission behavior
+- [docs/AI_FLOW.md](docs/AI_FLOW.md) for the AI recommendation pipeline architecture, LLM model selection, and configuration reference
