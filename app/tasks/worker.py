@@ -18,6 +18,7 @@ from app.tasks.books import (
     cyclic_book_manager,
     cyclic_book_seeder,
 )
+from app.tasks.reservations import reservation_manager
 
 
 async def startup(ctx: dict) -> None:
@@ -37,6 +38,7 @@ class WorkerSettings:
         book_enricher,
         assign_books_to_random_libraries,
         run_ai_recommendation_pipeline,
+        reservation_manager,
     ]
     on_startup = startup
     redis_settings = RedisSettings(
@@ -47,4 +49,5 @@ class WorkerSettings:
     cron_jobs = [
         cron(cyclic_book_seeder, name="cyclic_book_seeder", hour={7, 19}, minute=0),
         cron(cyclic_book_manager, name="cyclic_book_manager", hour={7, 19}, minute=15),
+        cron(reservation_manager, name="reservation_manager", second=0),
     ]

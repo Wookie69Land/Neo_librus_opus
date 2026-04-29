@@ -397,6 +397,7 @@ class ReservationApiTests(TestCase):
 
     def test_only_matching_library_admin_can_accept_reservation(self) -> None:
         payload = self._create_reservation()
+        Status.objects.get_or_create(name="accepted")
         accepted_status = Status.objects.get(name="accepted")
 
         forbidden_response = self.client.put(
@@ -416,51 +417,124 @@ class ReservationApiTests(TestCase):
         self.assertEqual(allowed_response.status_code, 200)
         self.assertEqual(allowed_response.json()["status"]["name"], "accepted")
 
-    def test_reservation_transition_flow_and_archive(self) -> None:
+    def test_admin_can_reject_pending_reservation(self) -> None:
         payload = self._create_reservation()
+        Status.objects.get_or_create(name="rejected")
+        rejected_status = Status.objects.get(name="rejected")
+
+        response = self.client.put(
+            f"/api/reservations/{payload['id']}",
+            data={"status_id": rejected_status.id},
+            content_type="application/json",
+            **self._library_admin_headers(),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"]["name"], "rejected")
+
+    def test_admin_cannot_transition_accepted_reservation(self) -> None:
+        payload = self._create_reservation()
+        Status.objects.get_or_create(name="accepted")
         accepted_status = Status.objects.get(name="accepted")
-        picked_up_status = Status.objects.get(name="picked_up")
+        Status.objects.get_or_create(name="closed")
         closed_status = Status.objects.get(name="closed")
 
-        reservation_id = payload["id"]
-        for status in (accepted_status, picked_up_status, closed_status):
-            response = self.client.put(
-                f"/api/reservations/{reservation_id}",
-                data={"status_id": status.id},
-                content_type="application/json",
-                **self._library_admin_headers(),
-            )
-            self.assertEqual(response.status_code, 200)
-
-        invalid_transition_response = self.client.put(
-            f"/api/reservations/{reservation_id}",
+        # accept first
+        self.client.put(
+            f"/api/reservations/{payload['id']}",
             data={"status_id": accepted_status.id},
             content_type="application/json",
             **self._library_admin_headers(),
         )
-        self.assertEqual(invalid_transition_response.status_code, 422)
-        self.assertEqual(
-            invalid_transition_response.json()["detail"],
-            "Invalid reservation status transition",
-        )
 
-        delete_response = self.client.delete(
-            f"/api/reservations/{reservation_id}",
+        # try to move again — not allowed from accepted
+        response = self.client.put(
+            f"/api/reservations/{payload['id']}",
+            data={"status_id": closed_status.id},
+            content_type="application/json",
             **self._library_admin_headers(),
         )
-        self.assertEqual(delete_response.status_code, 200)
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.json()["detail"], "Invalid reservation status transition")
 
-        archived_status = Status.objects.get(name="archived")
+    def test_user_can_cancel_pending_reservation(self) -> None:
+        payload = self._create_reservation()
+        response = self.client.delete(
+            f"/api/reservations/{payload['id']}",
+            **self._auth_headers(),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["success"], True)
+
         get_response = self.client.get(
-            f"/api/reservations/{reservation_id}",
+            f"/api/reservations/{payload['id']}",
+            **self._auth_headers(),
+        )
+        self.assertEqual(get_response.json()["status"]["name"], "cancelled")
+
+    def test_user_can_cancel_accepted_reservation(self) -> None:
+        payload = self._create_reservation()
+        Status.objects.get_or_create(name="accepted")
+        accepted_status = Status.objects.get(name="accepted")
+
+        self.client.put(
+            f"/api/reservations/{payload['id']}",
+            data={"status_id": accepted_status.id},
+            content_type="application/json",
             **self._library_admin_headers(),
         )
-        self.assertEqual(get_response.status_code, 200)
-        self.assertEqual(get_response.json()["status"]["name"], archived_status.name)
 
-        list_response = self.client.get("/api/reservations", **self._library_admin_headers())
-        self.assertEqual(list_response.status_code, 200)
-        self.assertEqual(list_response.json(), [])
+        response = self.client.delete(
+            f"/api/reservations/{payload['id']}",
+            **self._auth_headers(),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["success"], True)
+
+        get_response = self.client.get(
+            f"/api/reservations/{payload['id']}",
+            **self._auth_headers(),
+        )
+        self.assertEqual(get_response.json()["status"]["name"], "cancelled")
+
+    def test_user_cannot_cancel_rejected_reservation(self) -> None:
+        payload = self._create_reservation()
+        Status.objects.get_or_create(name="rejected")
+        rejected_status = Status.objects.get(name="rejected")
+
+        self.client.put(
+            f"/api/reservations/{payload['id']}",
+            data={"status_id": rejected_status.id},
+            content_type="application/json",
+            **self._library_admin_headers(),
+        )
+
+        response = self.client.delete(
+            f"/api/reservations/{payload['id']}",
+            **self._auth_headers(),
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertIn("Cannot cancel", response.json()["detail"])
+
+    def test_user_cannot_cancel_closed_reservation(self) -> None:
+        payload = self._create_reservation()
+        Status.objects.get_or_create(name="closed")
+        closed_status = Status.objects.get(name="closed")
+        Reservation.objects.filter(id=payload["id"]).update(status=closed_status)
+
+        response = self.client.delete(
+            f"/api/reservations/{payload['id']}",
+            **self._auth_headers(),
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertIn("Cannot cancel", response.json()["detail"])
+
+    def test_non_owner_cannot_cancel_reservation(self) -> None:
+        payload = self._create_reservation()
+        response = self.client.delete(
+            f"/api/reservations/{payload['id']}",
+            **self._auth_headers_for(self.other_reader_session),
+        )
+        self.assertEqual(response.status_code, 403)
 
     def test_list_reservations_returns_only_current_user_reservations_for_non_admin(self) -> None:
         own_reservation = self._create_reservation(session=self.session)

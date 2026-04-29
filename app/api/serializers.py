@@ -240,9 +240,7 @@ class ReservationSchemaIn(Schema):
 
 
 class ReservationUpdateSchema(Schema):
-    status_id: int | None = None
-    end_time: datetime | None = None
-    librarian_id: int | None = None
+    status_id: int
 
 class UserReservationSchemaOut(Schema):
     id: int

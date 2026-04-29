@@ -474,14 +474,35 @@ Create/update body:
 
 ## Reservations Endpoints
 
-Permission:
+### Reservation status flow
 
-- authenticated user required
-- list: returns only current user's reservations, or reservations from libraries the current user administers
-- create: authenticated user can create reservation
-- update/delete: only library admin for the reservation's library
+```
+                    ┌─(admin PUT → rejected)──► rejected
+                    │
+pending ────────────┼─(user DELETE → cancelled)─► cancelled
+                    │
+                    ├─(system, 48 h no action)──► expired
+                    │
+                    └─(admin PUT → accepted)──► accepted ─┬─(system, 3 days)──► closed
+                                                           │
+                                                           └─(user DELETE)──────► cancelled
+```
 
-Routes:
+Three actors:
+
+- **User** — creates reservations and can cancel their own reservation while it is `pending` or `accepted`.
+- **Library admin** — can accept or reject a `pending` reservation that belongs to their library.
+- **System** (`reservation_manager` cron task, runs every minute) — automatically expires `pending` reservations that have not been actioned in 48 hours, and closes `accepted` reservations after 3 days.
+
+### Permissions
+
+- `GET /reservations` — authenticated user required; regular users see only their own; library admins see only their library's; superusers see all
+- `POST /reservations` — any authenticated user
+- `GET /reservations/{id}` — owner or library admin of that reservation's library
+- `PUT /reservations/{id}` — library admin only; accepts or rejects a pending reservation
+- `DELETE /reservations/{id}` — owner only; cancels the reservation (allowed from `pending` or `accepted`)
+
+### Routes
 
 - `GET /reservations`
 - `POST /reservations`
@@ -489,7 +510,9 @@ Routes:
 - `PUT /reservations/{reservation_id}`
 - `DELETE /reservations/{reservation_id}`
 
-Create body:
+### POST `/reservations` — Create a reservation
+
+Request body:
 
 ```json
 {
@@ -498,23 +521,81 @@ Create body:
 }
 ```
 
-Current behavior:
+Validation:
 
-- reservation creator becomes the `reader` automatically
-- reservation creation requires the selected `book_id` to exist in the selected `library_id`
-- list endpoint omits reservations with status `archived`
-- if there are no related reservations for the current user scope, list returns an empty array `[]`
+- book must exist
+- library must exist
+- book must be linked to that library via `LibraryBook`
 
-Workflow statuses:
+Responses:
 
-- `pending` -> `accepted` -> `picked_up` -> `closed`
-- every status can be moved to `archived` through the delete endpoint
+- `200` — created reservation with `status.name = "pending"`
+- `404` — book or library not found
+- `422` — book not available in that library
 
-Permissions and state changes:
+### PUT `/reservations/{reservation_id}` — Admin accept or reject
 
-- create: any authenticated user
-- update status: only a library admin assigned to the reservation's library
-- delete: soft-delete only, implemented as status change to `archived` (record is not physically removed)
+Request body:
+
+```json
+{
+  "status_id": 3
+}
+```
+
+Only the following transition is allowed:
+
+- `pending` → `accepted`
+- `pending` → `rejected`
+
+Responses:
+
+- `200` — updated reservation
+- `403` — caller is not an admin of the reservation's library
+- `404` — reservation not found or status not found
+- `422` — transition not allowed from current status
+
+### DELETE `/reservations/{reservation_id}` — User cancel
+
+No body required. Cancels the reservation by setting status to `cancelled`.
+
+Allowed from:
+
+- `pending`
+- `accepted`
+
+Responses:
+
+- `200` — `{"success": true}`
+- `403` — caller is not the reservation owner
+- `404` — reservation not found
+- `422` — current status does not allow cancellation
+
+### Automatic status transitions (system)
+
+The `reservation_manager` background task runs every minute and performs:
+
+| Condition | Transition |
+|---|---|
+| `status = pending` AND `updated_at` older than 48 hours | `pending` → `expired` |
+| `status = accepted` AND `updated_at` older than 3 days | `accepted` → `closed` |
+
+The `updated_at` field on `Reservation` is updated by `auto_now` on every save. For the system task it acts as the last-status-change timestamp, since every admin action calls `asave(update_fields=[..., "updated_at"])`.
+
+### Response shape
+
+```json
+{
+  "id": 42,
+  "status": {"id": 1, "name": "pending"},
+  "start_time": "2026-04-29T10:00:00Z",
+  "end_time": null,
+  "reader": {"id": 5, "username": "jkowalski", "email": "jkowalski@example.com", "first_name": "Jan", "last_name": "Kowalski", "region": 7, "is_active": true, "date_joined": "2026-01-01T00:00:00Z", "last_login": null},
+  "librarian": null,
+  "library": {"id": 1, "name": "Biblioteka Testowa", "city": "Warszawa", "region": 7},
+  "book": {"id": 10, "title": "Pan Tadeusz", "isbn": "9788324012345", ...}
+}
+```
 
 ## Roles Endpoints
 

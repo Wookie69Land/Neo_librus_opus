@@ -13,6 +13,7 @@ from app.tasks.books import (
     cyclic_book_manager,
     cyclic_book_seeder,
 )
+from app.tasks.reservations import reservation_manager
 
 TaskCallable = Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]
 
@@ -21,6 +22,7 @@ TASKS: dict[str, TaskCallable] = {
     "book_enricher": book_enricher,
     "cyclic_book_manager": cyclic_book_manager,
     "cyclic_book_seeder": cyclic_book_seeder,
+    "reservation_manager": reservation_manager,
 }
 
 
