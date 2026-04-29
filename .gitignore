@@ -87,3 +87,6 @@ tmp/
 # Ignore instructions and local-only agent files
 INSTRUCTIONS.md
 TODO.md
+
+# Local dev/test management commands
+app/domain/management/commands/seed_reservation_test_data.py
