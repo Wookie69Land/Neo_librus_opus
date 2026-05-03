@@ -8,7 +8,7 @@ from django.db import close_old_connections
 from django.utils import timezone
 from asgiref.sync import sync_to_async
 
-from app.domain.models import CyclicTaskReport, Reservation, Status
+from app.domain.models import CyclicTaskReport, LibraryAdmin, MailNotification, Reservation, Status
 
 PENDING_EXPIRY_HOURS = 48
 ACCEPTED_CLOSE_DAYS = 3
@@ -31,6 +31,42 @@ async def _prune_old_reports(task_name: str, retention: int) -> None:
         await CyclicTaskReport.objects.filter(id__in=report_ids_to_delete).adelete()
 
 
+async def _bulk_buffer_notifications(
+    items: list[tuple[int, int, int]],
+    new_status: str,
+) -> None:
+    """Bulk-create MailNotification rows for readers and library admins.
+
+    ``items`` is a list of (reservation_id, reader_id, library_id) tuples
+    collected *before* the bulk status update.
+    """
+    if not items:
+        return
+
+    # One notification per reader.
+    await MailNotification.objects.abulk_create([
+        MailNotification(user_id=reader_id, reservation_id=res_id, new_status=new_status)
+        for res_id, reader_id, _ in items
+    ])
+
+    # One notification per library admin for each affected reservation.
+    lib_ids = {lib_id for _, _, lib_id in items}
+    lib_to_res_ids: dict[int, list[int]] = {}
+    for res_id, _, lib_id in items:
+        lib_to_res_ids.setdefault(lib_id, []).append(res_id)
+
+    admin_notifs: list[MailNotification] = []
+    async for admin_user_id, admin_lib_id in LibraryAdmin.objects.filter(
+        library_id__in=lib_ids
+    ).values_list("user_id", "library_id"):
+        for res_id in lib_to_res_ids.get(admin_lib_id, []):
+            admin_notifs.append(
+                MailNotification(user_id=admin_user_id, reservation_id=res_id, new_status=new_status)
+            )
+    if admin_notifs:
+        await MailNotification.objects.abulk_create(admin_notifs)
+
+
 async def _reservation_manager_impl() -> dict[str, Any]:
     now = timezone.now()
     expired_threshold = now - timedelta(hours=PENDING_EXPIRY_HOURS)
@@ -39,17 +75,36 @@ async def _reservation_manager_impl() -> dict[str, Any]:
     expired_status, _ = await Status.objects.aget_or_create(name="expired")
     closed_status, _ = await Status.objects.aget_or_create(name="closed")
 
-    # pending reservations with no admin action after 48 h → expired
-    expired_count = await Reservation.objects.filter(
-        status__name="pending",
-        updated_at__lte=expired_threshold,
-    ).aupdate(status_id=expired_status.id, updated_at=now)
+    # Collect affected IDs before each bulk update so we can notify afterwards.
+    pending_to_expire = [
+        (res_id, reader_id, lib_id)
+        async for res_id, reader_id, lib_id in Reservation.objects.filter(
+            status__name="pending",
+            updated_at__lte=expired_threshold,
+        ).values_list("id", "reader_id", "library_id")
+    ]
+    if pending_to_expire:
+        expired_count = await Reservation.objects.filter(
+            id__in=[item[0] for item in pending_to_expire]
+        ).aupdate(status_id=expired_status.id, updated_at=now)
+        await _bulk_buffer_notifications(pending_to_expire, "expired")
+    else:
+        expired_count = 0
 
-    # accepted reservations not picked up within 3 days → closed
-    closed_count = await Reservation.objects.filter(
-        status__name="accepted",
-        updated_at__lte=closed_threshold,
-    ).aupdate(status_id=closed_status.id, updated_at=now)
+    accepted_to_close = [
+        (res_id, reader_id, lib_id)
+        async for res_id, reader_id, lib_id in Reservation.objects.filter(
+            status__name="accepted",
+            updated_at__lte=closed_threshold,
+        ).values_list("id", "reader_id", "library_id")
+    ]
+    if accepted_to_close:
+        closed_count = await Reservation.objects.filter(
+            id__in=[item[0] for item in accepted_to_close]
+        ).aupdate(status_id=closed_status.id, updated_at=now)
+        await _bulk_buffer_notifications(accepted_to_close, "closed")
+    else:
+        closed_count = 0
 
     return {
         "status": "completed",

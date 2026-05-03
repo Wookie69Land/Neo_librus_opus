@@ -18,6 +18,7 @@ from app.tasks.books import (
     cyclic_book_manager,
     cyclic_book_seeder,
 )
+from app.tasks.mailing import mailing_manager
 from app.tasks.reservations import reservation_manager
 
 
@@ -39,6 +40,7 @@ class WorkerSettings:
         assign_books_to_random_libraries,
         run_ai_recommendation_pipeline,
         reservation_manager,
+        mailing_manager,
     ]
     on_startup = startup
     redis_settings = RedisSettings(
@@ -50,4 +52,10 @@ class WorkerSettings:
         cron(cyclic_book_seeder, name="cyclic_book_seeder", hour={7, 19}, minute=0),
         cron(cyclic_book_manager, name="cyclic_book_manager", hour={7, 19}, minute=15),
         cron(reservation_manager, name="reservation_manager", second=0),
+        cron(
+            mailing_manager,
+            name="mailing_manager",
+            minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55},
+            second=0,
+        ),
     ]

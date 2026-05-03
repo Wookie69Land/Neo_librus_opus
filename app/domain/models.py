@@ -95,6 +95,14 @@ class LibraryUser(AbstractUser):
         self.full_clean()
         super().save(*args, **kwargs)
 
+    async def anotify(self, reservation: "Reservation", new_status: str) -> None:
+        """Buffer an email notification for this user about a reservation status change."""
+        await MailNotification.objects.acreate(
+            user=self,
+            reservation=reservation,
+            new_status=new_status,
+        )
+
 class Role(models.Model):
     """Model for user roles in a library."""
     id = models.AutoField(primary_key=True,
@@ -140,6 +148,21 @@ class Library(models.Model):
 
     def __str__(self):
         return self.name
+
+    async def anotify(self, reservation: "Reservation", new_status: str) -> bool:
+        """Stub — no direct email to the library address to avoid spam."""
+        return False
+
+    async def anotify_admins(self, reservation: "Reservation", new_status: str) -> None:
+        """Buffer email notifications for every admin of this library."""
+        async for la_user_id, in LibraryAdmin.objects.filter(
+            library_id=self.id
+        ).values_list("user_id"):
+            await MailNotification.objects.acreate(
+                user_id=la_user_id,
+                reservation=reservation,
+                new_status=new_status,
+            )
 
 class Author(models.Model):
     """Represents an author of a book."""
@@ -280,6 +303,14 @@ class Reservation(models.Model):
     def __str__(self):
         return f"Reservation {self.id} for '{self.book.title}'"
 
+    async def anotify(self, new_status: str) -> None:
+        """Buffer email notifications for the reader and all library admins."""
+        reader = await LibraryUser.objects.aget(id=self.reader_id)
+        await reader.anotify(self, new_status)
+        library = await Library.objects.aget(id=self.library_id)
+        await library.anotify_admins(self, new_status)
+        await library.anotify(self, new_status)
+
 class LibraryAdmin(models.Model):
     """Through model for library administrators and their roles."""
     library = models.ForeignKey(Library, on_delete=models.CASCADE)
@@ -329,3 +360,39 @@ class CyclicTaskReport(models.Model):
 
     def __str__(self) -> str:
         return f"{self.task_name} [{self.status}]"
+
+
+class MailNotification(models.Model):
+    """Buffer for outgoing email notifications about reservation status changes.
+
+    Records are created synchronously after every status change and flushed
+    every 5 minutes by the ``mailing_manager`` background task.
+    Notifications for the same user are grouped per reservation into a single
+    email so the recipient receives one digest rather than many individual messages.
+    """
+
+    user = models.ForeignKey(
+        LibraryUser,
+        on_delete=models.CASCADE,
+        related_name="mail_notifications",
+        verbose_name=_("Recipient"),
+    )
+    reservation = models.ForeignKey(
+        Reservation,
+        on_delete=models.CASCADE,
+        related_name="mail_notifications",
+        verbose_name=_("Reservation"),
+    )
+    new_status = models.CharField(max_length=50, verbose_name=_("New Status"))
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Created At"))
+    sent_at = models.DateTimeField(null=True, blank=True, verbose_name=_("Sent At"))
+
+    class Meta:
+        verbose_name = _("Mail Notification")
+        verbose_name_plural = _("Mail Notifications")
+        indexes = [
+            models.Index(fields=["sent_at"], name="domain_mailnotif_sentat_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"MailNotification user={self.user_id} reservation={self.reservation_id} status={self.new_status}"

@@ -113,7 +113,9 @@ async def create_reservation(request, payload: ReservationSchemaIn):
     reservation = await Reservation.objects.acreate(
         reader_id=session.user_id, status_id=status.id, **payload.dict()
     )
-    return await _get_reservation_for_response(reservation.id)
+    full_reservation = await _get_reservation_for_response(reservation.id)
+    await full_reservation.anotify(STATUS_PENDING)
+    return full_reservation
 
 
 @router.get(
@@ -171,7 +173,9 @@ async def update_reservation(request, reservation_id: int, payload: ReservationU
     reservation.status_id = status.id
     reservation.librarian_id = session.user_id
     await reservation.asave(update_fields=["status_id", "librarian_id", "updated_at"])
-    return 200, await _get_reservation_for_response(reservation.id)
+    full_reservation = await _get_reservation_for_response(reservation.id)
+    await full_reservation.anotify(status.name)
+    return 200, full_reservation
 
 
 @router.delete(
@@ -201,4 +205,5 @@ async def cancel_reservation(request, reservation_id: int):
     cancelled_status, _ = await Status.objects.aget_or_create(name=STATUS_CANCELLED)
     reservation.status_id = cancelled_status.id
     await reservation.asave(update_fields=["status_id", "updated_at"])
+    await reservation.anotify(STATUS_CANCELLED)
     return 200, {"success": True}
