@@ -14,6 +14,7 @@ from app.domain.models import (
     LibraryAdmin,
     LibraryBook,
     LibraryUser,
+    Reservation,
     Role,
     SessionToken,
     Status,
@@ -544,9 +545,9 @@ class ReservationApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
 
         payload = response.json()
-        self.assertEqual(len(payload), 1)
-        self.assertEqual(payload[0]["id"], own_reservation["id"])
-        self.assertEqual(payload[0]["reader"]["id"], self.user.id)
+        self.assertEqual(len(payload["items"]), 1)
+        self.assertEqual(payload["items"][0]["id"], own_reservation["id"])
+        self.assertEqual(payload["items"][0]["reader"]["id"], self.user.id)
 
     def test_list_reservations_returns_only_admin_library_reservations_for_admin(self) -> None:
         self._create_reservation(session=self.session, library_id=self.library.id)
@@ -559,8 +560,8 @@ class ReservationApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
 
         payload = response.json()
-        self.assertEqual(len(payload), 1)
-        self.assertEqual(payload[0]["library"]["id"], self.library.id)
+        self.assertEqual(len(payload["items"]), 1)
+        self.assertEqual(payload["items"][0]["library"]["id"], self.library.id)
 
     def test_list_reservations_returns_empty_list_when_no_related_reservations(self) -> None:
         response = self.client.get(
@@ -568,4 +569,375 @@ class ReservationApiTests(TestCase):
             **self._auth_headers_for(self.no_reservations_session),
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), [])
+        self.assertEqual(response.json()["items"], [])
+
+    def test_list_reservations_pagination_structure(self) -> None:
+        self._create_reservation()
+
+        response = self.client.get("/api/reservations", **self._auth_headers())
+        self.assertEqual(response.status_code, 200)
+
+        payload = response.json()
+        for key in ("items", "page", "page_size", "total", "total_pages"):
+            self.assertIn(key, payload)
+        self.assertEqual(payload["page"], 1)
+        self.assertEqual(payload["total"], 1)
+        self.assertEqual(payload["total_pages"], 1)
+
+    def test_list_reservations_pagination_limits_items(self) -> None:
+        self._create_reservation(session=self.session)
+        self._create_reservation(session=self.session)
+        self._create_reservation(session=self.session)
+
+        response = self.client.get(
+            "/api/reservations", {"page": 1, "page_size": 2}, **self._auth_headers()
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(len(payload["items"]), 2)
+        self.assertEqual(payload["total"], 3)
+        self.assertEqual(payload["total_pages"], 2)
+        self.assertEqual(payload["page_size"], 2)
+
+    def test_list_reservations_filter_by_status(self) -> None:
+        pending = self._create_reservation()
+        Status.objects.get_or_create(name="rejected")
+        rejected_status = Status.objects.get(name="rejected")
+        Reservation.objects.filter(id=pending["id"]).update(status=rejected_status)
+
+        self._create_reservation()  # second reservation, stays pending
+
+        response = self.client.get(
+            "/api/reservations", {"status": "pending"}, **self._auth_headers()
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["total"], 1)
+        self.assertEqual(payload["items"][0]["status"]["name"], "pending")
+
+    def test_list_reservations_admin_filter_by_library_id(self) -> None:
+        self._create_reservation(session=self.session, library_id=self.library.id)
+        self._create_reservation(session=self.other_reader_session, library_id=self.other_library.id)
+
+        response = self.client.get(
+            "/api/reservations",
+            {"library_id": self.library.id},
+            **self._library_admin_headers(),
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["total"], 1)
+        self.assertEqual(payload["items"][0]["library"]["id"], self.library.id)
+
+    def test_reservation_response_includes_state_active_for_pending(self) -> None:
+        payload = self._create_reservation()
+        self.assertEqual(payload["state"], "active")
+
+    def test_reservation_response_includes_state_active_for_accepted(self) -> None:
+        payload = self._create_reservation()
+        Status.objects.get_or_create(name="accepted")
+        accepted_status = Status.objects.get(name="accepted")
+
+        response = self.client.put(
+            f"/api/reservations/{payload['id']}",
+            data={"status_id": accepted_status.id},
+            content_type="application/json",
+            **self._library_admin_headers(),
+        )
+        self.assertEqual(response.json()["state"], "active")
+
+    def test_reservation_response_includes_state_completed_for_closed(self) -> None:
+        payload = self._create_reservation()
+        Status.objects.get_or_create(name="closed")
+        closed_status = Status.objects.get(name="closed")
+        Reservation.objects.filter(id=payload["id"]).update(status=closed_status)
+
+        response = self.client.get(f"/api/reservations/{payload['id']}", **self._auth_headers())
+        self.assertEqual(response.json()["state"], "completed")
+
+    def test_reservation_response_includes_state_unfulfilled_for_cancelled(self) -> None:
+        payload = self._create_reservation()
+        self.client.delete(f"/api/reservations/{payload['id']}", **self._auth_headers())
+
+        response = self.client.get(f"/api/reservations/{payload['id']}", **self._auth_headers())
+        self.assertEqual(response.json()["state"], "unfulfilled")
+
+    def test_reservation_response_includes_state_unfulfilled_for_rejected(self) -> None:
+        payload = self._create_reservation()
+        Status.objects.get_or_create(name="rejected")
+        rejected_status = Status.objects.get(name="rejected")
+        Reservation.objects.filter(id=payload["id"]).update(status=rejected_status)
+
+        response = self.client.get(f"/api/reservations/{payload['id']}", **self._auth_headers())
+        self.assertEqual(response.json()["state"], "unfulfilled")
+
+    def test_reservation_planned_end_time_approximately_48h_for_pending(self) -> None:
+        from datetime import datetime as dt, timezone as utctz
+
+        payload = self._create_reservation()
+        self.assertIsNotNone(payload["planned_end_time"])
+
+        planned = dt.fromisoformat(payload["planned_end_time"])
+        expected = dt.now(tz=utctz.utc) + timedelta(hours=48)
+        delta_seconds = abs((planned - expected).total_seconds())
+        self.assertLess(delta_seconds, 10)
+
+    def test_reservation_planned_end_time_approximately_3_days_for_accepted(self) -> None:
+        from datetime import datetime as dt, timezone as utctz
+
+        payload = self._create_reservation()
+        Status.objects.get_or_create(name="accepted")
+        accepted_status = Status.objects.get(name="accepted")
+
+        response = self.client.put(
+            f"/api/reservations/{payload['id']}",
+            data={"status_id": accepted_status.id},
+            content_type="application/json",
+            **self._library_admin_headers(),
+        )
+        accepted = response.json()
+        self.assertIsNotNone(accepted["planned_end_time"])
+
+        planned = dt.fromisoformat(accepted["planned_end_time"])
+        expected = dt.now(tz=utctz.utc) + timedelta(days=3)
+        delta_seconds = abs((planned - expected).total_seconds())
+        self.assertLess(delta_seconds, 10)
+
+    def test_reservation_planned_end_time_is_none_after_cancellation(self) -> None:
+        payload = self._create_reservation()
+        self.client.delete(f"/api/reservations/{payload['id']}", **self._auth_headers())
+
+        response = self.client.get(f"/api/reservations/{payload['id']}", **self._auth_headers())
+        self.assertIsNone(response.json()["planned_end_time"])
+
+    def test_cancel_reservation_sets_end_time(self) -> None:
+        payload = self._create_reservation()
+        self.assertIsNone(payload["end_time"])
+
+        self.client.delete(f"/api/reservations/{payload['id']}", **self._auth_headers())
+
+        response = self.client.get(f"/api/reservations/{payload['id']}", **self._auth_headers())
+        self.assertIsNotNone(response.json()["end_time"])
+
+
+class LibraryReadersApiTests(TestCase):
+    def setUp(self) -> None:
+        self.library = Library.objects.create(name="Main Library", city="Warszawa")
+        self.other_library = Library.objects.create(name="Branch Library", city="Krakow")
+
+        self.book = Book.objects.create(title="Test Book", isbn="9780306406157")
+        LibraryBook.objects.create(book=self.book, library=self.library, is_available=True)
+        LibraryBook.objects.create(book=self.book, library=self.other_library, is_available=True)
+
+        self.role = Role.objects.create(name="readers-test-admin-role")
+
+        self.admin_user = LibraryUser.objects.create_user(
+            username="readers_admin",
+            email="readers_admin@example.com",
+            password="secret123",
+        )
+        self.admin_session = SessionToken.objects.create(
+            key="readers-admin-token", user=self.admin_user
+        )
+        LibraryAdmin.objects.create(
+            library=self.library, user=self.admin_user, role=self.role
+        )
+
+        self.other_admin_user = LibraryUser.objects.create_user(
+            username="other_readers_admin",
+            email="other_readers_admin@example.com",
+            password="secret123",
+        )
+        self.other_admin_session = SessionToken.objects.create(
+            key="other-readers-admin-token", user=self.other_admin_user
+        )
+        LibraryAdmin.objects.create(
+            library=self.other_library, user=self.other_admin_user, role=self.role
+        )
+
+        self.reader1 = LibraryUser.objects.create_user(
+            username="reader_one",
+            email="reader_one@example.com",
+            password="secret123",
+        )
+        self.reader1_session = SessionToken.objects.create(
+            key="reader-one-token", user=self.reader1
+        )
+        self.reader2 = LibraryUser.objects.create_user(
+            username="reader_two",
+            email="reader_two@example.com",
+            password="secret123",
+        )
+        self.reader2_session = SessionToken.objects.create(
+            key="reader-two-token", user=self.reader2
+        )
+        self.non_reader = LibraryUser.objects.create_user(
+            username="non_reader",
+            email="non_reader@example.com",
+            password="secret123",
+        )
+        self.non_reader_session = SessionToken.objects.create(
+            key="non-reader-token", user=self.non_reader
+        )
+
+        self.superuser = LibraryUser.objects.create_superuser(
+            username="superuser_readers",
+            email="superuser_readers@example.com",
+            password="secret123",
+        )
+        self.superuser_session = SessionToken.objects.create(
+            key="superuser-readers-token", user=self.superuser
+        )
+
+        pending_status, _ = Status.objects.get_or_create(name="pending")
+        Reservation.objects.create(
+            reader=self.reader1, library=self.library, book=self.book, status=pending_status
+        )
+        Reservation.objects.create(
+            reader=self.reader2, library=self.library, book=self.book, status=pending_status
+        )
+        # reader2 also has a reservation at other_library — must NOT appear in self.library results
+        Reservation.objects.create(
+            reader=self.reader2,
+            library=self.other_library,
+            book=self.book,
+            status=pending_status,
+        )
+
+    def _auth(self, session: SessionToken) -> dict:
+        return {"HTTP_AUTHORIZATION": f"Bearer {session.key}"}
+
+    def test_readers_endpoint_returns_readers_of_the_library(self) -> None:
+        response = self.client.get(
+            f"/api/libraries/{self.library.id}/readers", **self._auth(self.admin_session)
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        reader_ids = {item["id"] for item in payload["items"]}
+        self.assertIn(self.reader1.id, reader_ids)
+        self.assertIn(self.reader2.id, reader_ids)
+        self.assertNotIn(self.non_reader.id, reader_ids)
+
+    def test_readers_endpoint_excludes_users_from_other_library(self) -> None:
+        response = self.client.get(
+            f"/api/libraries/{self.other_library.id}/readers",
+            **self._auth(self.other_admin_session),
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        reader_ids = {item["id"] for item in payload["items"]}
+        self.assertIn(self.reader2.id, reader_ids)
+        self.assertNotIn(self.reader1.id, reader_ids)
+
+    def test_readers_endpoint_returns_each_reader_once(self) -> None:
+        # reader2 already has 1 reservation at self.library; add a second
+        pending_status = Status.objects.get(name="pending")
+        Reservation.objects.create(
+            reader=self.reader2, library=self.library, book=self.book, status=pending_status
+        )
+        response = self.client.get(
+            f"/api/libraries/{self.library.id}/readers", **self._auth(self.admin_session)
+        )
+        payload = response.json()
+        reader_ids = [item["id"] for item in payload["items"]]
+        self.assertEqual(len(reader_ids), len(set(reader_ids)))
+
+    def test_readers_endpoint_pagination_structure(self) -> None:
+        response = self.client.get(
+            f"/api/libraries/{self.library.id}/readers", **self._auth(self.admin_session)
+        )
+        payload = response.json()
+        for key in ("items", "page", "page_size", "total", "total_pages"):
+            self.assertIn(key, payload)
+        self.assertEqual(payload["total"], 2)
+        self.assertEqual(payload["page"], 1)
+
+    def test_readers_endpoint_pagination_limits_items(self) -> None:
+        response = self.client.get(
+            f"/api/libraries/{self.library.id}/readers",
+            {"page": 1, "page_size": 1},
+            **self._auth(self.admin_session),
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(len(payload["items"]), 1)
+        self.assertEqual(payload["total"], 2)
+        self.assertEqual(payload["total_pages"], 2)
+
+    def test_readers_endpoint_forbidden_for_regular_user(self) -> None:
+        response = self.client.get(
+            f"/api/libraries/{self.library.id}/readers",
+            **self._auth(self.non_reader_session),
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_readers_endpoint_forbidden_for_admin_of_different_library(self) -> None:
+        response = self.client.get(
+            f"/api/libraries/{self.library.id}/readers",
+            **self._auth(self.other_admin_session),
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_readers_endpoint_accessible_by_superuser(self) -> None:
+        response = self.client.get(
+            f"/api/libraries/{self.library.id}/readers",
+            **self._auth(self.superuser_session),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["total"], 2)
+
+
+class BookLibraryFilterApiTests(TestCase):
+    def setUp(self) -> None:
+        self.user = LibraryUser.objects.create_user(
+            username="book_filter_user",
+            email="book_filter@example.com",
+            password="secret123",
+        )
+        self.session = SessionToken.objects.create(key="book-filter-token", user=self.user)
+
+        self.library_a = Library.objects.create(name="Library A", city="Warszawa")
+        self.library_b = Library.objects.create(name="Library B", city="Krakow")
+
+        self.book_in_a = Book.objects.create(title="Book Only In A", isbn="9780306406157")
+        self.book_in_b = Book.objects.create(title="Book Only In B", isbn="9783161484100")
+        self.book_in_both = Book.objects.create(title="Book In Both", isbn="9780140449136")
+
+        LibraryBook.objects.create(book=self.book_in_a, library=self.library_a, is_available=True)
+        LibraryBook.objects.create(book=self.book_in_b, library=self.library_b, is_available=True)
+        LibraryBook.objects.create(book=self.book_in_both, library=self.library_a, is_available=True)
+        LibraryBook.objects.create(book=self.book_in_both, library=self.library_b, is_available=True)
+
+    def _auth(self) -> dict:
+        return {"HTTP_AUTHORIZATION": f"Bearer {self.session.key}"}
+
+    def test_books_filtered_by_library_id_returns_only_that_library_books(self) -> None:
+        response = self.client.get(
+            "/api/books", {"library_id": self.library_a.id}, **self._auth()
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        returned_ids = {item["id"] for item in payload["items"]}
+        self.assertIn(self.book_in_a.id, returned_ids)
+        self.assertIn(self.book_in_both.id, returned_ids)
+        self.assertNotIn(self.book_in_b.id, returned_ids)
+
+    def test_books_without_library_filter_returns_all_books(self) -> None:
+        response = self.client.get("/api/books", **self._auth())
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        returned_ids = {item["id"] for item in payload["items"]}
+        self.assertIn(self.book_in_a.id, returned_ids)
+        self.assertIn(self.book_in_b.id, returned_ids)
+        self.assertIn(self.book_in_both.id, returned_ids)
+
+    def test_books_filter_by_library_b_returns_only_b_books(self) -> None:
+        response = self.client.get(
+            "/api/books", {"library_id": self.library_b.id}, **self._auth()
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        returned_ids = {item["id"] for item in payload["items"]}
+        self.assertIn(self.book_in_b.id, returned_ids)
+        self.assertIn(self.book_in_both.id, returned_ids)
+        self.assertNotIn(self.book_in_a.id, returned_ids)

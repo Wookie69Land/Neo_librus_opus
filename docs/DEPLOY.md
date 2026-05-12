@@ -267,6 +267,7 @@ Commands currently available in `app/domain/management/commands`:
 - `clear_books_data`
 - `fetch_isbn_books`
 - `run_cyclic_task`
+- `seed_factory_data`
 - `seed_polish_books`
 - `seed_polish_libraries`
 - `show_cyclic_task_reports`
@@ -309,6 +310,69 @@ docker compose -f docker-compose.prod.yml exec web python manage.py seed_polish_
 docker compose -f docker-compose.prod.yml exec web python manage.py run_cyclic_task cyclic_book_seeder
 docker compose -f docker-compose.prod.yml exec web python manage.py show_cyclic_task_reports --task cyclic_book_manager
 ```
+
+### Generating random factory data for testing
+
+`seed_factory_data` creates a self-contained dataset of fake libraries, books, authors,
+reader accounts, library-admin accounts, and reservations in every status so you can
+exercise the full API surface immediately after deployment or on a fresh environment.
+
+All generated objects use a `factory_` prefix on usernames and library names, making
+them easy to identify and remove.
+
+#### Options
+
+| Flag | Default | Description |
+|---|---|---|
+| `--libraries N` | 3 | Number of factory libraries |
+| `--books N` | 15 | Number of factory books |
+| `--readers N` | 8 | Number of factory reader accounts |
+| `--extra-reservations N` | 30 | Extra random reservations added on top of the one-per-status set (useful for pagination testing) |
+| `--password P` | `WookiePass1!` | Password set on every generated account |
+| `--clear` | off | Remove all previous factory objects, then reseed |
+| `--only-clear` | off | Remove factory objects without reseeding |
+
+#### Local virtual environment
+
+```bash
+# Seed with defaults
+python manage.py seed_factory_data
+
+# Larger dataset with more pagination data
+python manage.py seed_factory_data --libraries 5 --books 30 --readers 20 --extra-reservations 50
+
+# Wipe previous factory data and reseed
+python manage.py seed_factory_data --clear
+
+# Remove factory data only (no reseed)
+python manage.py seed_factory_data --only-clear
+```
+
+#### Local Docker / dev compose
+
+```bash
+docker compose exec web python manage.py seed_factory_data
+docker compose exec web python manage.py seed_factory_data --libraries 5 --books 30 --readers 20 --extra-reservations 50
+docker compose exec web python manage.py seed_factory_data --clear
+docker compose exec web python manage.py seed_factory_data --only-clear
+```
+
+#### Production Docker
+
+```bash
+docker compose -f docker-compose.prod.yml exec web python manage.py seed_factory_data
+docker compose -f docker-compose.prod.yml exec web python manage.py seed_factory_data --libraries 5 --books 30 --readers 20 --extra-reservations 50
+docker compose -f docker-compose.prod.yml exec web python manage.py seed_factory_data --clear
+docker compose -f docker-compose.prod.yml exec web python manage.py seed_factory_data --only-clear
+```
+
+The command prints a credential summary at the end with ready-to-use Bearer tokens
+for every generated account. Paste a token directly into `curl` or Swagger UI.
+
+> **Note:** `seed_factory_data` is intended for development and staging environments.
+> Run `--only-clear` before going to production to remove any test data.
+
+---
 
 ### Seeding reference data in production
 

@@ -33,6 +33,7 @@ book_author_repo = BookAuthorRepository(BookAuthor)
 class BookListQuery(Schema):
     page: int = 1
     page_size: int = 12
+    library_id: int | None = None
 
 
 async def _serialize_book(book: Book) -> BookSchemaOut:
@@ -77,6 +78,8 @@ async def list_books(request, params: BookListQuery = Query(...)):
     page_size = min(max(params.page_size, 1), 100)
 
     books = _ordered_books_queryset()
+    if params.library_id is not None:
+        books = books.filter(librarybook__library_id=params.library_id)
     total = await books.acount()
     start = (page - 1) * page_size
     end = start + page_size

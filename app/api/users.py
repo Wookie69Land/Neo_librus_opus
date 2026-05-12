@@ -7,8 +7,13 @@ from app.api.permissions import require_library_admin_or_superuser
 from app.api.jwt_utils import decode_token
 from app.api.session_tokens import issue_user_session_token
 from app.api.serializers import (
+    AuthorSchemaOut,
+    BookSchemaOut,
+    LibrarySchemaOut,
     LibraryUserSchema,
+    StatusSchemaOut,
     UserDetailSchema,
+    UserReservationSchemaOut,
     UserUpdateSchema,
     UserUpdateResponseSchema,
 )
@@ -57,13 +62,36 @@ async def get_user(request, user_id: int):
         async for la in LibraryAdmin.objects.select_related("library", "role").filter(user_id=user_id)
     ]
 
-    active_reservations = [
+    active_reservations_qs = [
         r async for r in Reservation.objects.select_related(
             "status", "library", "book"
-        ).filter(
+        ).prefetch_related("book__authors").filter(
             reader_id=user_id,
             end_time__isnull=True,
         ).exclude(status__name__iexact="archived")
+    ]
+
+    active_reservations = [
+        UserReservationSchemaOut(
+            id=r.id,
+            status=StatusSchemaOut(id=r.status.id, name=r.status.name),
+            start_time=r.start_time,
+            end_time=r.end_time,
+            library=LibrarySchemaOut(
+                id=r.library.id,
+                name=r.library.name,
+                address=r.library.address,
+                city=r.library.city,
+                phone=r.library.phone,
+                email=r.library.email,
+                region=r.library.region,
+            ),
+            book=BookSchemaOut.from_book(
+                r.book,
+                [AuthorSchemaOut(id=a.id, name=a.name) for a in r.book.authors.all()],
+            ),
+        )
+        for r in active_reservations_qs
     ]
 
     return 200, UserDetailSchema(

@@ -1,13 +1,20 @@
 
-from ninja import Router
+from ninja import Query, Router
 from ninja.errors import HttpError
 from django.db.models import Exists, OuterRef
+from django.utils import timezone
 
 from app.api.permissions import (
     get_authenticated_session,
     is_library_admin_for_library,
 )
-from app.api.serializers import ReservationSchemaIn, ReservationSchemaOut, ReservationUpdateSchema
+from app.api.serializers import (
+    PaginatedReservationSchemaOut,
+    ReservationListQuery,
+    ReservationSchemaIn,
+    ReservationSchemaOut,
+    ReservationUpdateSchema,
+)
 from app.domain.models import Book, Library, LibraryAdmin, LibraryBook, Reservation, Status
 
 router = Router(tags=["Reservations"])
@@ -46,21 +53,25 @@ async def _can_access_reservation(session, reservation: Reservation) -> bool:
 
 @router.get(
     "",
-    response=list[ReservationSchemaOut],
+    response=PaginatedReservationSchemaOut,
     summary="List reservations",
     description=(
-        "Returns reservations visible to the caller. "
+        "Returns paginated reservations visible to the caller. "
         "Regular users see only their own reservations. "
         "Library admins see reservations for their library. "
-        "Superusers see all reservations."
+        "Superusers see all reservations. "
+        "Optional filters: `status` (status name, case-insensitive), "
+        "`library_id` (admins/superusers only)."
     ),
 )
-async def list_reservations(request):
+async def list_reservations(request, params: ReservationListQuery = Query(...)):
     session = get_authenticated_session(request)
     queryset = _reservation_with_related_queryset()
 
     if session.user.is_superuser:
         filtered_queryset = queryset
+        if params.library_id is not None:
+            filtered_queryset = filtered_queryset.filter(library_id=params.library_id)
     else:
         admin_library_ids = [
             library_id
@@ -69,12 +80,32 @@ async def list_reservations(request):
             ).values_list("library_id", flat=True)
         ]
         if admin_library_ids:
-            filtered_queryset = queryset.filter(library_id__in=admin_library_ids)
+            if params.library_id is not None and params.library_id in admin_library_ids:
+                filtered_queryset = queryset.filter(library_id=params.library_id)
+            else:
+                filtered_queryset = queryset.filter(library_id__in=admin_library_ids)
         else:
             filtered_queryset = queryset.filter(reader_id=session.user_id)
+            if params.library_id is not None:
+                filtered_queryset = filtered_queryset.filter(library_id=params.library_id)
 
-    reservations = [reservation async for reservation in filtered_queryset]
-    return reservations
+    if params.status is not None:
+        filtered_queryset = filtered_queryset.filter(status__name__iexact=params.status)
+
+    page = max(params.page, 1)
+    page_size = min(max(params.page_size, 1), 100)
+    total = await filtered_queryset.acount()
+    start = (page - 1) * page_size
+    end = start + page_size
+    items = [reservation async for reservation in filtered_queryset[start:end]]
+    total_pages = max((total + page_size - 1) // page_size, 1)
+    return PaginatedReservationSchemaOut(
+        items=items,
+        page=page,
+        page_size=page_size,
+        total=total,
+        total_pages=total_pages,
+    )
 
 
 @router.post(
@@ -204,6 +235,7 @@ async def cancel_reservation(request, reservation_id: int):
 
     cancelled_status, _ = await Status.objects.aget_or_create(name=STATUS_CANCELLED)
     reservation.status_id = cancelled_status.id
-    await reservation.asave(update_fields=["status_id", "updated_at"])
+    reservation.end_time = timezone.now()
+    await reservation.asave(update_fields=["status_id", "end_time", "updated_at"])
     await reservation.anotify(STATUS_CANCELLED)
     return 200, {"success": True}

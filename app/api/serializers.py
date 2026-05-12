@@ -1,9 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.contrib.auth.password_validation import validate_password
 from ninja import Field, Schema
-from pydantic import field_validator
+from pydantic import computed_field, field_validator
 
 from app.domain.languages import get_language_display
 from app.domain.models import Voivodeship
@@ -186,6 +186,19 @@ class PaginatedBookSchemaOut(Schema):
     total_pages: int
 
 
+class ReadersListQuery(Schema):
+    page: int = 1
+    page_size: int = 20
+
+
+class PaginatedLibraryUserSchema(Schema):
+    items: list[LibraryUserSchema]
+    page: int
+    page_size: int
+    total: int
+    total_pages: int
+
+
 class BookLanguageSchema(Schema):
     code: str
     display: str
@@ -224,15 +237,45 @@ class LibraryBookSchema(Schema):
     library: LibrarySchemaOut
     is_available: bool
 
+_ACTIVE_STATUSES = frozenset({"pending", "accepted"})
+_COMPLETED_STATUSES = frozenset({"closed"})
+_UNFULFILLED_STATUSES = frozenset({"expired", "rejected", "cancelled"})
+
+# Must match the cyclic task constants in app/tasks/reservations.py
+_PENDING_EXPIRY_HOURS = 48
+_ACCEPTED_CLOSE_DAYS = 3
+
+
 class ReservationSchemaOut(Schema):
     id: int
     status: StatusSchemaOut
     start_time: datetime
     end_time: datetime | None = None
+    updated_at: datetime
     reader: LibraryUserSchema
     librarian: LibraryUserSchema | None = None
     library: LibrarySchemaOut
     book: BookSchemaOut
+
+    @computed_field
+    @property
+    def state(self) -> str:
+        name = self.status.name.lower()
+        if name in _ACTIVE_STATUSES:
+            return "active"
+        if name in _COMPLETED_STATUSES:
+            return "completed"
+        return "unfulfilled"
+
+    @computed_field
+    @property
+    def planned_end_time(self) -> datetime | None:
+        name = self.status.name.lower()
+        if name == "pending":
+            return self.updated_at + timedelta(hours=_PENDING_EXPIRY_HOURS)
+        if name == "accepted":
+            return self.updated_at + timedelta(days=_ACCEPTED_CLOSE_DAYS)
+        return None
 
 class ReservationSchemaIn(Schema):
     library_id: int
@@ -241,6 +284,21 @@ class ReservationSchemaIn(Schema):
 
 class ReservationUpdateSchema(Schema):
     status_id: int
+
+
+class ReservationListQuery(Schema):
+    page: int = 1
+    page_size: int = 20
+    status: str | None = None
+    library_id: int | None = None
+
+
+class PaginatedReservationSchemaOut(Schema):
+    items: list[ReservationSchemaOut]
+    page: int
+    page_size: int
+    total: int
+    total_pages: int
 
 class UserReservationSchemaOut(Schema):
     id: int

@@ -86,7 +86,7 @@ async def _reservation_manager_impl() -> dict[str, Any]:
     if pending_to_expire:
         expired_count = await Reservation.objects.filter(
             id__in=[item[0] for item in pending_to_expire]
-        ).aupdate(status_id=expired_status.id, updated_at=now)
+        ).aupdate(status_id=expired_status.id, updated_at=now, end_time=now)
         await _bulk_buffer_notifications(pending_to_expire, "expired")
     else:
         expired_count = 0
@@ -101,7 +101,7 @@ async def _reservation_manager_impl() -> dict[str, Any]:
     if accepted_to_close:
         closed_count = await Reservation.objects.filter(
             id__in=[item[0] for item in accepted_to_close]
-        ).aupdate(status_id=closed_status.id, updated_at=now)
+        ).aupdate(status_id=closed_status.id, updated_at=now, end_time=now)
         await _bulk_buffer_notifications(accepted_to_close, "closed")
     else:
         closed_count = 0
