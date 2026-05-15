@@ -230,6 +230,13 @@ ACCOUNT_ACTIVATION_SUCCESS_URL: Final[str] = env(
     "ACCOUNT_ACTIVATION_SUCCESS_URL",
     default="https://librarius.nanys.pl/register-success",
 )
+# Frontend page that receives ?uid=<b64>&token=<tok> and lets the user set a new password.
+FRONTEND_PASSWORD_RESET_URL: Final[str] = env(
+    "FRONTEND_PASSWORD_RESET_URL",
+    default="https://librarius.nanys.pl/reset-password",
+)
+# How long (in seconds) a password-reset token stays valid. Default: 1 hour.
+PASSWORD_RESET_TIMEOUT: Final[int] = env.int("PASSWORD_RESET_TIMEOUT", default=3600)
 
 # Mailgun Configuration (currently unused, kept for future reference)
 # EMAIL_BACKEND = "anymail.backends.mailgun.EmailBackend"

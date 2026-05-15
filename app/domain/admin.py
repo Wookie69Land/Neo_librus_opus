@@ -16,6 +16,16 @@ from .models import (
 )
 
 
+class LibraryAdminRoleInline(admin.TabularInline):
+    model = LibraryAdmin
+    extra = 0
+    verbose_name = "Library Role"
+    verbose_name_plural = "Library Roles"
+    autocomplete_fields = ['library']
+    fields = ('library', 'role', 'added_at')
+    readonly_fields = ('added_at',)
+
+
 @admin.register(LibraryUser)
 class LibraryUserAdmin(UserAdmin):
     list_display = (
@@ -28,6 +38,7 @@ class LibraryUserAdmin(UserAdmin):
     add_fieldsets = UserAdmin.add_fieldsets + (
         (None, {'fields': ('region',)}),
     )
+    inlines = [LibraryAdminRoleInline]
 
 @admin.register(Book)
 class BookAdmin(admin.ModelAdmin):

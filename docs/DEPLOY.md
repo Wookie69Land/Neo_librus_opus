@@ -401,13 +401,18 @@ docker compose -f docker-compose.prod.yml exec web python manage.py seed_polish_
 The project uses `arq` with Redis for scheduled background work. The worker runs in a
 separate `worker` container and uses the `Europe/Warsaw` timezone.
 
-Configured daily jobs:
+Configured jobs:
 
 ```text
+# Twice daily
 07:00  cyclic_book_seeder
 19:00  cyclic_book_seeder
 07:15  cyclic_book_manager
 19:15  cyclic_book_manager
+
+# High-frequency
+every 1 min   reservation_manager
+every 5 min   mailing_manager
 ```
 
 #### `cyclic_book_seeder`
@@ -436,6 +441,28 @@ Runs two maintenance steps every day:
 - library assignment step
   Finds books assigned to fewer than `2` libraries and randomly adds them to enough
   libraries to reach between `2` and `5` total assignments.
+
+#### `reservation_manager`
+
+Runs **every minute**. Scans all open reservations and:
+
+- Expires `pending` reservations that have been waiting for more than **48 hours**
+- Closes `accepted` reservations that have been active for more than **3 days**
+
+For each affected reservation it creates `MailNotification` rows in the database —
+one for the reader, one per library admin — so the mailing job can pick them up.
+
+#### `mailing_manager`
+
+Runs **every 5 minutes**. Collects all unsent `MailNotification` rows, groups them
+into a single digest email per recipient, sends it, and marks the rows as sent.
+If sending fails for one user the rows are left unsent and retried on the next run.
+
+The two jobs are deliberately decoupled: reservation status changes are buffered to
+the database immediately, and email delivery happens in the next 5-minute window.
+If the worker is down, unsent rows accumulate in the database and are flushed in one
+batch as soon as the worker comes back up — which is why a late restart can produce
+a single email that covers all updates from the downtime period.
 
 #### First production evidence when jobs seem to run only once
 
@@ -517,6 +544,29 @@ small sample of books and the library IDs added during that manager run.
 
 The same commands work locally if you replace `docker-compose.prod.yml` with the
 local compose file or run them directly from your local virtual environment.
+
+#### Diagnosing delayed email delivery
+
+If a user receives a notification email much later than the reservation status changed
+(e.g. after 30 minutes instead of within 5), the most likely cause is that the
+`worker` container was down. Notifications are stored in the database immediately by
+`reservation_manager`; they are only sent when `mailing_manager` runs. A worker
+restart flushes all accumulated rows in the next 5-minute tick.
+
+To confirm:
+
+```bash
+# Check if the worker was recently restarted
+docker inspect $(docker compose -f docker-compose.prod.yml ps -q worker) \
+  --format '{{.State.StartedAt}} restart={{.RestartCount}} status={{.State.Status}}'
+
+# Check worker logs for the period around the delayed email
+docker compose -f docker-compose.prod.yml logs --since "2026-05-15T00:00:00" worker | head -50
+```
+
+If `RestartCount > 0` or `StartedAt` is recent, the worker was restarted and missed
+several scheduled flushes. The batch email on restart is the expected recovery
+behaviour — no notifications are lost, only delayed.
 
 #### Task debugging
 

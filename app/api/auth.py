@@ -20,7 +20,7 @@ from unidecode import unidecode
 
 from app.api.jwt_utils import decode_token
 from app.api.session_tokens import issue_user_session_token
-from app.api.serializers import LibraryUserSchema, LoginSchema, LogoutSchema, RegisterSchema
+from app.api.serializers import LibraryUserSchema, LoginSchema, LogoutSchema, RegisterSchema, PasswordResetRequestSchema, PasswordResetRequestResponseSchema, PasswordResetConfirmSchema
 from app.domain.models import LibraryAdmin, LibraryUser, SessionToken
 from app.domain.repositories import LibraryAdminRepository, LibraryUserRepository
 
@@ -185,3 +185,103 @@ async def logout(request, payload: LogoutSchema):
             return 409, {"detail": "Another session is open for this user"}
     except SessionToken.DoesNotExist:
         return 200, {"detail": "No active session found — already logged out"}
+
+
+# ---------------------------------------------------------------------------
+# Password reset token generator — separate from account activation to prevent
+# cross-purpose token reuse.  Django's PasswordResetTokenGenerator hashes on
+# (user.pk, user.password, user.last_login, timestamp), so the token becomes
+# invalid as soon as the password or last_login changes.
+# ---------------------------------------------------------------------------
+password_reset_token_generator = PasswordResetTokenGenerator()
+
+
+@router.post(
+    "/password-reset/request",
+    response={200: PasswordResetRequestResponseSchema, 500: dict},
+    auth=None,
+    summary="Request password reset",
+    description=(
+        "Look up a user by email. If an active account exists, a one-time reset link "
+        "is emailed to the address. Returns `user_id` on success or `null` when no "
+        "matching active account is found.\n\n"
+        "**Note:** the response intentionally reveals whether the email is registered. "
+        "Consider rate-limiting this endpoint at the infrastructure level to mitigate "
+        "user enumeration."
+    ),
+)
+async def request_password_reset(request, payload: PasswordResetRequestSchema):
+    try:
+        user = await LibraryUser.objects.aget(
+            email=payload.email.strip().lower(), is_active=True
+        )
+    except LibraryUser.DoesNotExist:
+        return 200, {"user_id": None}
+
+    def _send_reset_email() -> None:
+        token = password_reset_token_generator.make_token(user)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        reset_link = f"{settings.FRONTEND_PASSWORD_RESET_URL}?uid={uid}&token={token}"
+        expiry_hours = settings.PASSWORD_RESET_TIMEOUT // 3600
+        send_mail(
+            subject="Reset your Librarius password",
+            message=(
+                f"Hello {user.first_name},\n\n"
+                f"You requested a password reset for your Librarius account.\n\n"
+                f"Click the link below to set a new password:\n\n"
+                f"{reset_link}\n\n"
+                f"This link expires in {expiry_hours} hour(s). "
+                f"If you did not request a reset, you can safely ignore this email."
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+
+    try:
+        await sync_to_async(_send_reset_email)()
+    except (SMTPException, ConnectionError, OSError):
+        return 500, {"detail": "Unable to send reset email. Please try again later."}
+
+    return 200, {"user_id": user.id}
+
+
+@router.post(
+    "/password-reset/confirm",
+    response={200: dict, 400: dict, 422: dict},
+    auth=None,
+    summary="Confirm password reset",
+    description=(
+        "Validate the one-time reset token issued by `/password-reset/request` and set "
+        "a new password. The `uid` and `token` values come from the reset URL query "
+        "parameters the frontend received. On success the user's existing session is "
+        "invalidated and they must log in again with the new password."
+    ),
+)
+async def confirm_password_reset(request, payload: PasswordResetConfirmSchema):
+    # Decode uid and load the user.
+    try:
+        uid_decoded = force_str(urlsafe_base64_decode(payload.uid))
+        user = await user_repo.get_by_id(int(uid_decoded))
+    except (TypeError, ValueError, OverflowError):
+        user = None
+
+    if user is None or not user.is_active:
+        return 400, {"detail": "Invalid or expired password reset link"}
+
+    if not password_reset_token_generator.check_token(user, payload.token):
+        return 400, {"detail": "Invalid or expired password reset link"}
+
+    def _apply_password_reset() -> None:
+        validate_password(payload.new_password, user=user)
+        user.set_password(payload.new_password)
+        user.save()
+        # Invalidate any active session so the user must log in with the new password.
+        SessionToken.objects.filter(user=user).delete()
+
+    try:
+        await sync_to_async(_apply_password_reset)()
+    except DjangoValidationError as exc:
+        return 422, {"detail": exc.messages}
+
+    return 200, {"detail": "Password reset successful. Please log in with your new password."}

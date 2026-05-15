@@ -31,6 +31,8 @@ Current effective permissions:
 - `GET /auth/activate` — public
 - `POST /auth/login` — public
 - `POST /auth/logout` — public, but requires a valid token string in the request body to invalidate the active session
+- `POST /auth/password-reset/request` — public
+- `POST /auth/password-reset/confirm` — public
 - all `/authors`, `/books`, `/libraries`, `/reservations`, `/roles`, `/statuses`, `/search` endpoints — authenticated user required
 - `GET /users/{user_id}` — authenticated user required; allowed for the same user or any library worker with `role_id != 0`
 - `PUT /users/{user_id}` — authenticated user required; allowed for the same user or a superuser
@@ -175,6 +177,170 @@ Responses:
 - `200` — logout successful or no active session found
 - `400` — invalid token format
 - `409` — token belongs to a different active session than the current one stored for the user
+
+### POST `/auth/password-reset/request`
+
+Permission:
+
+- public
+
+#### Purpose
+
+Initiates a password reset flow for a user identified by email address. If an active account with the given email exists, a one-time reset link is sent to that address. The link embeds a signed token valid for a configurable period (default 1 hour).
+
+#### Request body
+
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+#### Responses
+
+- `200` — always returned after lookup (see body for result)
+- `500` — SMTP failure; the email could not be sent
+
+#### 200 body — user found
+
+```json
+{
+  "user_id": 42
+}
+```
+
+#### 200 body — no active account with that email
+
+```json
+{
+  "user_id": null
+}
+```
+
+#### Email content
+
+The user receives a plain-text email with a link in the following form:
+
+```
+https://librarius.nanys.pl/reset-password?uid=<base64-user-id>&token=<signed-token>
+```
+
+The frontend must present this as a clickable link that opens the password-reset form.
+
+#### Notes
+
+- only accounts with `is_active = true` receive the email; inactive accounts silently return `user_id: null`
+- token validity window is controlled by the `PASSWORD_RESET_TIMEOUT` environment variable (seconds, default `3600`)
+- the token automatically becomes invalid once the password changes, so replay attacks are not possible
+- the response intentionally distinguishes registered from unknown emails; consider rate-limiting this endpoint at the infrastructure level to limit enumeration
+
+#### curl example
+
+```bash
+curl -X POST http://localhost:8000/api/auth/password-reset/request \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com"}'
+```
+
+---
+
+### POST `/auth/password-reset/confirm`
+
+Permission:
+
+- public
+
+#### Purpose
+
+Validates the one-time token from the reset link and sets the new password. On success the user's active session is revoked and they must log in again.
+
+#### Request body
+
+```json
+{
+  "uid": "<base64-user-id from reset URL>",
+  "token": "<signed-token from reset URL>",
+  "new_password": "NewStrongPass1!"
+}
+```
+
+`uid` and `token` are the raw query parameter values from the reset URL received in the email.
+
+#### Password requirements (same as registration)
+
+- minimum 12 characters
+- at least one uppercase letter
+- at least one digit
+- at least one special character
+- must not be too similar to user attributes or be a common password
+
+#### Responses
+
+- `200` — password changed; existing session invalidated
+- `400` — invalid or expired token / unknown user
+- `422` — new password failed validation rules
+
+#### 200 body
+
+```json
+{
+  "detail": "Password reset successful. Please log in with your new password."
+}
+```
+
+#### 400 body
+
+```json
+{
+  "detail": "Invalid or expired password reset link"
+}
+```
+
+Both invalid uid and expired/wrong token return the same 400 message to avoid leaking which part failed.
+
+#### 422 body
+
+```json
+{
+  "detail": ["This password is too common.", "This password must contain at least 1 uppercase letter."]
+}
+```
+
+#### curl example
+
+```bash
+curl -X POST http://localhost:8000/api/auth/password-reset/confirm \
+  -H "Content-Type: application/json" \
+  -d '{
+    "uid": "NDI",
+    "token": "bw3grl-...",
+    "new_password": "NewStrongPass1!"
+  }'
+```
+
+---
+
+#### Full password reset flow
+
+```
+User                           Frontend                        API
+ │                                │                             │
+ │── clicks "Forgot password" ───►│                             │
+ │                                │── POST /auth/password-reset/request (email) ──►│
+ │                                │◄── 200 { user_id: 42 | null } ─────────────────│
+ │                                │                             │
+ │◄── show "check your email" ────│    (if user_id != null)     │
+ │                                │          email sent ──────► user inbox
+ │                                │                             │
+ │── clicks link in email ────────►│                             │
+ │  (?uid=NDI&token=bw3grl-...)   │                             │
+ │                                │  parse uid + token from URL │
+ │                                │── POST /auth/password-reset/confirm ──────────►│
+ │                                │   { uid, token, new_password }                  │
+ │                                │◄── 200 { detail: "Password reset successful" } ─│
+ │                                │                             │
+ │◄── redirect to /login ─────────│  session invalidated         │
+```
 
 ## Search Endpoints
 

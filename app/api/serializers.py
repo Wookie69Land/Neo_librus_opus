@@ -85,6 +85,26 @@ class LoginSchema(Schema):
 class LogoutSchema(Schema):
     token: str
 
+class PasswordResetRequestSchema(Schema):
+    email: str
+
+class PasswordResetRequestResponseSchema(Schema):
+    user_id: int | None
+
+class PasswordResetConfirmSchema(Schema):
+    uid: str
+    token: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, value: str) -> str:
+        try:
+            validate_password(value)
+        except DjangoValidationError as exc:
+            raise ValueError(" ".join(exc.messages)) from exc
+        return value
+
 class AuthorSchemaOut(Schema):
     id: int
     name: str
