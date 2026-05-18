@@ -95,7 +95,7 @@ class ReservationManagerTaskTests(TestCase):
 
     def setUp(self) -> None:
         self.library = Library.objects.create(name="Test Library")
-        self.book = Book.objects.create(title="Task Test Book", isbn="9780000000099")
+        self.book = Book.objects.create(title="Task Test Book", isbn="9780000000002")
         self.reader = LibraryUser.objects.create_user(
             username="task_reader", email="task_reader@example.com", password="secret"
         )

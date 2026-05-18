@@ -80,8 +80,11 @@ async def list_reservations(request, params: ReservationListQuery = Query(...)):
             ).values_list("library_id", flat=True)
         ]
         if admin_library_ids:
-            if params.library_id is not None and params.library_id in admin_library_ids:
-                filtered_queryset = queryset.filter(library_id=params.library_id)
+            if params.library_id is not None:
+                if params.library_id in admin_library_ids:
+                    filtered_queryset = queryset.filter(library_id=params.library_id)
+                else:
+                    filtered_queryset = queryset.none()
             else:
                 filtered_queryset = queryset.filter(library_id__in=admin_library_ids)
         else:

@@ -629,6 +629,23 @@ class ReservationApiTests(TestCase):
         self.assertEqual(payload["total"], 1)
         self.assertEqual(payload["items"][0]["library"]["id"], self.library.id)
 
+    def test_list_reservations_admin_filter_by_unmanaged_library_returns_empty(self) -> None:
+        # Library admin of self.library requests reservations for a library they don't manage.
+        # Before the fix the filter was silently ignored and returned the admin's own library
+        # reservations; after the fix an empty list is returned.
+        self._create_reservation(session=self.session, library_id=self.library.id)
+        self._create_reservation(session=self.other_reader_session, library_id=self.other_library.id)
+
+        response = self.client.get(
+            "/api/reservations",
+            {"library_id": self.other_library.id},
+            **self._library_admin_headers(),
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["total"], 0)
+        self.assertEqual(payload["items"], [])
+
     def test_reservation_response_includes_state_active_for_pending(self) -> None:
         payload = self._create_reservation()
         self.assertEqual(payload["state"], "active")
