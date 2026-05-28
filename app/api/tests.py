@@ -736,6 +736,102 @@ class ReservationApiTests(TestCase):
         response = self.client.get(f"/api/reservations/{payload['id']}", **self._auth_headers())
         self.assertIsNotNone(response.json()["end_time"])
 
+    # ------------------------------------------------------------------
+    # Coverage gap tests
+    # ------------------------------------------------------------------
+
+    def test_superuser_can_list_all_reservations(self) -> None:
+        superuser = LibraryUser.objects.create_superuser(
+            username="superadmin",
+            email="superadmin@example.com",
+            password="super123",
+        )
+        superuser_session = SessionToken.objects.create(key="superadmin-token", user=superuser)
+        self._create_reservation(session=self.session)
+        self._create_reservation(session=self.other_reader_session)
+
+        response = self.client.get(
+            "/api/reservations",
+            **self._auth_headers_for(superuser_session),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["total"], 2)
+
+    def test_superuser_can_filter_by_library_id(self) -> None:
+        superuser = LibraryUser.objects.create_superuser(
+            username="superadmin2",
+            email="superadmin2@example.com",
+            password="super123",
+        )
+        superuser_session = SessionToken.objects.create(key="superadmin2-token", user=superuser)
+        self._create_reservation(session=self.session, library_id=self.library.id)
+        self._create_reservation(session=self.other_reader_session, library_id=self.other_library.id)
+
+        response = self.client.get(
+            "/api/reservations",
+            {"library_id": self.library.id},
+            **self._auth_headers_for(superuser_session),
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["total"], 1)
+        self.assertEqual(payload["items"][0]["library"]["id"], self.library.id)
+
+    def test_regular_user_list_with_library_id_filter(self) -> None:
+        self._create_reservation(session=self.session, library_id=self.library.id)
+        self._create_reservation(session=self.session, library_id=self.other_library.id)
+
+        response = self.client.get(
+            "/api/reservations",
+            {"library_id": self.library.id},
+            **self._auth_headers(),
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["total"], 1)
+        self.assertEqual(payload["items"][0]["library"]["id"], self.library.id)
+
+    def test_get_nonexistent_reservation_returns_404(self) -> None:
+        response = self.client.get("/api/reservations/999999", **self._auth_headers())
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["detail"], "Reservation not found")
+
+    def test_get_reservation_forbidden_for_unrelated_user(self) -> None:
+        payload = self._create_reservation(session=self.session)
+        response = self.client.get(
+            f"/api/reservations/{payload['id']}",
+            **self._auth_headers_for(self.other_reader_session),
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["detail"], "Permission denied")
+
+    def test_update_nonexistent_reservation_returns_404(self) -> None:
+        accepted_status, _ = Status.objects.get_or_create(name="accepted")
+        response = self.client.put(
+            "/api/reservations/999999",
+            data={"status_id": accepted_status.id},
+            content_type="application/json",
+            **self._library_admin_headers(),
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["detail"], "Reservation not found")
+
+    def test_update_reservation_with_nonexistent_status_returns_422(self) -> None:
+        payload = self._create_reservation()
+        response = self.client.put(
+            f"/api/reservations/{payload['id']}",
+            data={"status_id": 999999},
+            content_type="application/json",
+            **self._library_admin_headers(),
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.json()["detail"], "Status not found")
+
+    def test_cancel_nonexistent_reservation_returns_404(self) -> None:
+        response = self.client.delete("/api/reservations/999999", **self._auth_headers())
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["detail"], "Reservation not found")
+
 
 class LibraryReadersApiTests(TestCase):
     def setUp(self) -> None:

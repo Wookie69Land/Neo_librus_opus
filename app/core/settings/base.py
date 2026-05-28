@@ -135,6 +135,13 @@ AI_MAX_TOKENS: Final[int] = env.int("AI_MAX_TOKENS", default=2048)
 GEMINI_API_KEY: Final[str] = env("GEMINI_API_KEY", default="")
 GROQ_API_KEY: Final[str] = env("GROQ_API_KEY", default="")
 
+# MongoDB — AI observability & recommendation result cache
+MONGODB_HOST: Final[str] = env("MONGODB_HOST", default="localhost")
+MONGODB_PORT: Final[int] = env.int("MONGODB_PORT", default=27017)
+MONGODB_USER: Final[str] = env("MONGODB_USER", default="")
+MONGODB_PASSWORD: Final[str] = env("MONGODB_PASSWORD", default="")
+MONGODB_DATABASE: Final[str] = env("MONGODB_DATABASE", default="librariusAI_db")
+
 
 # Logging
 LOGGING: dict[str, Any] = {

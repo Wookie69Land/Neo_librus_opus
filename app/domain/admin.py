@@ -1,5 +1,8 @@
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.contrib.admin import helpers
 from django.contrib.auth.admin import UserAdmin
+from django.template.response import TemplateResponse
+from django.utils.translation import gettext_lazy as _
 
 from .models import (
     Author,
@@ -39,6 +42,38 @@ class LibraryUserAdmin(UserAdmin):
         (None, {'fields': ('region',)}),
     )
     inlines = [LibraryAdminRoleInline]
+    actions = ['deactivate_users']
+
+    @admin.action(description=_("Deactivate selected Library Users"))
+    def deactivate_users(self, request, queryset):
+        if request.POST.get('post') == 'yes':
+            updated = queryset.update(is_active=False)
+            self.message_user(
+                request,
+                _("%(count)d %(verbose_name)s deactivated.")
+                % {
+                    'count': updated,
+                    'verbose_name': self.model._meta.verbose_name
+                    if updated == 1
+                    else self.model._meta.verbose_name_plural,
+                },
+                messages.SUCCESS,
+            )
+            return None
+
+        context = {
+            **self.admin_site.each_context(request),
+            'title': _("Deactivate selected Library Users"),
+            'queryset': queryset,
+            'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
+            'opts': self.model._meta,
+            'media': self.media,
+        }
+        return TemplateResponse(
+            request,
+            'admin/deactivate_selected_confirmation.html',
+            context,
+        )
 
 @admin.register(Book)
 class BookAdmin(admin.ModelAdmin):

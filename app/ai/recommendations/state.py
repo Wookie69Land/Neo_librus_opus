@@ -55,3 +55,7 @@ class RecommendationState(TypedDict, total=False):
 
     # ── Error tracking (non-fatal; nodes may set this and continue) ───────────
     node_errors: list[str]
+
+    # ── Observability: per-node wall-clock latency and token usage ────────────
+    node_timings: dict[str, float]   # {node_name: latency_in_seconds}
+    token_usage: dict[str, dict]     # {node_name: {input_tokens: int, output_tokens: int}}

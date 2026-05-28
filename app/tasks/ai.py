@@ -10,10 +10,12 @@ Registration: add this function to ``WorkerSettings.functions`` in
 from __future__ import annotations
 
 import logging
+import time
 from datetime import datetime, timezone
 
 from django.db import close_old_connections
 
+from app.ai.mongo import cache_result, ensure_indexes, get_cached_result, log_pipeline_run
 from app.ai.recommendations.graph import recommendation_graph
 from app.ai.recommendations.state import RecommendationState
 
@@ -44,14 +46,35 @@ async def run_ai_recommendation_pipeline(ctx: dict, payload: dict) -> dict:
     close_old_connections()
 
     request_id: str = payload["request_id"]
+    raw_query: str = payload["query"]
+    language: str | None = payload.get("language")
+    include_unavailable: bool = payload.get("include_unavailable", True)
+    max_results: int = payload.get("max_results", 10)
+
     logger.info("AI recommendation pipeline started", extra={"request_id": request_id})
+
+    # ── MongoDB: ensure indexes (idempotent, fast after first call) ────────────
+    await ensure_indexes()
+
+    # ── MongoDB: check recommendation cache ───────────────────────────────────
+    cached = await get_cached_result(raw_query, language, include_unavailable, max_results)
+    if cached:
+        logger.info(
+            "AI recommendation pipeline served from cache",
+            extra={"request_id": request_id},
+        )
+        # Replace request_id so the polling endpoint sees this request's ID.
+        cached["request_id"] = request_id
+        return cached
+
+    pipeline_start = time.monotonic()
 
     initial_state: RecommendationState = {
         "request_id": request_id,
-        "raw_query": payload["query"],
-        "max_results": payload.get("max_results", 10),
-        "language": payload.get("language"),
-        "include_unavailable": payload.get("include_unavailable", True),
+        "raw_query": raw_query,
+        "max_results": max_results,
+        "language": language,
+        "include_unavailable": include_unavailable,
         "node_errors": [],
     }
 
@@ -62,7 +85,7 @@ async def run_ai_recommendation_pipeline(ctx: dict, payload: dict) -> dict:
             "AI recommendation pipeline failed with unhandled error",
             extra={"request_id": request_id},
         )
-        return {
+        failed_result = {
             "status": "failed",
             "request_id": request_id,
             "error": f"Pipeline error: {exc}",
@@ -72,6 +95,17 @@ async def run_ai_recommendation_pipeline(ctx: dict, payload: dict) -> dict:
             "generated_at": datetime.now(tz=timezone.utc).isoformat(),
             "node_errors": [],
         }
+        await log_pipeline_run(
+            request_id=request_id,
+            raw_query=raw_query,
+            payload=payload,
+            result=failed_result,
+            node_timings={},
+            token_usage={},
+            node_errors=[f"unhandled: {exc}"],
+            total_latency_s=round(time.monotonic() - pipeline_start, 3),
+        )
+        return failed_result
 
     # Build availability lookup from candidate_books
     book_meta: dict[int, dict] = {
@@ -120,7 +154,7 @@ async def run_ai_recommendation_pipeline(ctx: dict, payload: dict) -> dict:
         extra={"request_id": request_id},
     )
 
-    return {
+    result = {
         "status": "completed",
         "request_id": request_id,
         "query_interpretation": final_state.get("query_interpretation"),
@@ -130,3 +164,29 @@ async def run_ai_recommendation_pipeline(ctx: dict, payload: dict) -> dict:
         "node_errors": node_errors,
         "error": None,
     }
+
+    total_latency = round(time.monotonic() - pipeline_start, 3)
+    node_timings: dict[str, float] = final_state.get("node_timings") or {}
+    token_usage: dict[str, dict] = final_state.get("token_usage") or {}
+
+    logger.info(
+        "Pipeline timings: total=%.2fs nodes=%s",
+        total_latency,
+        {k: f"{v:.2f}s" for k, v in node_timings.items()},
+        extra={"request_id": request_id},
+    )
+
+    # ── MongoDB: cache successful result + append audit log ────────────────────
+    await cache_result(raw_query, language, include_unavailable, max_results, result)
+    await log_pipeline_run(
+        request_id=request_id,
+        raw_query=raw_query,
+        payload=payload,
+        result=result,
+        node_timings=node_timings,
+        token_usage=token_usage,
+        node_errors=node_errors,
+        total_latency_s=total_latency,
+    )
+
+    return result

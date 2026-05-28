@@ -14,8 +14,11 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 
+from langchain_core.callbacks.base import BaseCallbackHandler
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.outputs import LLMResult
 
 from app.ai.client import LLMRole, get_llm, structured_output_kwargs
 from app.ai.recommendations.prompts import (
@@ -34,6 +37,38 @@ from app.ai.recommendations.schemas import (
 from app.ai.recommendations.state import RecommendationState
 
 logger = logging.getLogger(__name__)
+
+
+# ── Token-usage callback ───────────────────────────────────────────────────────
+
+class _TokenUsageCallback(BaseCallbackHandler):
+    """Lightweight LangChain callback that captures token counts from any provider.
+
+    Compatible with both Gemini (``usage_metadata`` key) and Groq/OpenAI-compat
+    (``token_usage`` key) response formats.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.input_tokens: int = 0
+        self.output_tokens: int = 0
+
+    def on_llm_end(self, response: LLMResult, **kwargs: object) -> None:  # noqa: ARG002
+        lo: dict = response.llm_output or {}
+        # Gemini: usage_metadata.{prompt_token_count, candidates_token_count}
+        # Groq / OpenAI-compat: token_usage.{prompt_tokens, completion_tokens}
+        usage: dict = (
+            lo.get("usage_metadata")
+            or lo.get("token_usage")
+            or lo.get("usage")
+            or {}
+        )
+        self.input_tokens += (
+            usage.get("prompt_token_count") or usage.get("prompt_tokens") or 0
+        )
+        self.output_tokens += (
+            usage.get("candidates_token_count") or usage.get("completion_tokens") or 0
+        )
 
 
 # ── Node 1: Query Understanding ────────────────────────────────────────────────
@@ -62,15 +97,26 @@ async def understand_query(state: RecommendationState) -> dict:
             SystemMessage(content=QUERY_UNDERSTANDING_SYSTEM),
             HumanMessage(content=QUERY_UNDERSTANDING_HUMAN.format(raw_query=raw_query)),
         ]
-        result: QueryUnderstanding = await llm.ainvoke(messages)
+        token_cb = _TokenUsageCallback()
+        t0 = time.monotonic()
+        result: QueryUnderstanding = await llm.ainvoke(messages, config={"callbacks": [token_cb]})
+        latency = time.monotonic() - t0
+
+        timings = dict(state.get("node_timings") or {})
+        timings["understand_query"] = round(latency, 3)
+        usage = dict(state.get("token_usage") or {})
+        usage["understand_query"] = {"input": token_cb.input_tokens, "output": token_cb.output_tokens}
 
         logger.info(
-            "understand_query succeeded: keywords=%s language_hint=%r audience=%r period=%s-%s",
+            "understand_query succeeded: keywords=%s language_hint=%r audience=%r period=%s-%s latency=%.2fs tokens_in=%d tokens_out=%d",
             result.keywords,
             result.language_hint,
             result.audience,
             result.period_from,
             result.period_to,
+            latency,
+            token_cb.input_tokens,
+            token_cb.output_tokens,
             extra={"request_id": state.get("request_id")},
         )
         return {
@@ -81,6 +127,8 @@ async def understand_query(state: RecommendationState) -> dict:
             "period_from": result.period_from,
             "period_to": result.period_to,
             "node_errors": errors,
+            "node_timings": timings,
+            "token_usage": usage,
         }
 
     except Exception as exc:
@@ -252,7 +300,15 @@ async def analyze_statistics(state: RecommendationState) -> dict:
                 )
             ),
         ]
-        result: StatisticalAnalysis = await llm.ainvoke(messages)
+        token_cb = _TokenUsageCallback()
+        t0 = time.monotonic()
+        result: StatisticalAnalysis = await llm.ainvoke(messages, config={"callbacks": [token_cb]})
+        latency = time.monotonic() - t0
+
+        timings = dict(state.get("node_timings") or {})
+        timings["analyze_statistics"] = round(latency, 3)
+        usage = dict(state.get("token_usage") or {})
+        usage["analyze_statistics"] = {"input": token_cb.input_tokens, "output": token_cb.output_tokens}
 
         scored = [
             {
@@ -264,8 +320,11 @@ async def analyze_statistics(state: RecommendationState) -> dict:
         ]
 
         logger.info(
-            "analyze_statistics succeeded: %d scored",
+            "analyze_statistics succeeded: %d scored latency=%.2fs tokens_in=%d tokens_out=%d",
             len(scored),
+            latency,
+            token_cb.input_tokens,
+            token_cb.output_tokens,
             extra={"request_id": state.get("request_id")},
         )
         return {
@@ -274,6 +333,8 @@ async def analyze_statistics(state: RecommendationState) -> dict:
             "categories_found": result.dominant_categories or state.get("categories_found", []),
             "languages_found": result.dominant_languages or state.get("languages_found", []),
             "node_errors": errors,
+            "node_timings": timings,
+            "token_usage": usage,
         }
 
     except Exception as exc:
@@ -365,7 +426,15 @@ async def compose_response(state: RecommendationState) -> dict:
                 )
             ),
         ]
-        result: FinalResponse = await llm.ainvoke(messages)
+        token_cb = _TokenUsageCallback()
+        t0 = time.monotonic()
+        result: FinalResponse = await llm.ainvoke(messages, config={"callbacks": [token_cb]})
+        latency = time.monotonic() - t0
+
+        timings = dict(state.get("node_timings") or {})
+        timings["compose_response"] = round(latency, 3)
+        usage = dict(state.get("token_usage") or {})
+        usage["compose_response"] = {"input": token_cb.input_tokens, "output": token_cb.output_tokens}
 
         final_recs = [
             {"book_id": r.book_id, "why_recommended": r.why_recommended}
@@ -373,8 +442,11 @@ async def compose_response(state: RecommendationState) -> dict:
         ]
 
         logger.info(
-            "compose_response succeeded: %d recommendations",
+            "compose_response succeeded: %d recommendations latency=%.2fs tokens_in=%d tokens_out=%d",
             len(final_recs),
+            latency,
+            token_cb.input_tokens,
+            token_cb.output_tokens,
             extra={"request_id": state.get("request_id")},
         )
         return {
@@ -382,6 +454,8 @@ async def compose_response(state: RecommendationState) -> dict:
             "final_recommendations": final_recs,
             "stats_narrative": result.stats_narrative,
             "node_errors": errors,
+            "node_timings": timings,
+            "token_usage": usage,
         }
 
     except Exception as exc:
