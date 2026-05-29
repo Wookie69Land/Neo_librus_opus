@@ -89,13 +89,18 @@ class LLMRole(StrEnum):
 def structured_output_kwargs() -> dict:
     """Return extra kwargs to pass to ``with_structured_output()`` for the active provider.
 
-    Groq's API does not reliably support ``json_schema`` response format, so we
-    fall back to ``function_calling`` (tool use), which every Groq model with
-    tool-use support handles correctly.  Gemini via LangChain uses its own
-    structured-output path and does not need an explicit method override.
+    **Groq:** use ``json_mode`` (``response_format: {"type": "json_object"}``).
+    ``function_calling`` was the previous default but Groq's server-side validator
+    rejects generation output that contains trailing commas — a known model quirk
+    — with a hard 400 error before we can inspect or repair the text.  With
+    ``json_mode`` the model returns raw JSON text; LangChain/Pydantic parses it
+    on our side, where malformed output produces a recoverable ``ValidationError``
+    instead of an unrecoverable HTTP 400.
+
+    **Gemini:** uses its own structured-output path internally; no override needed.
     """
     if settings.AI_PROVIDER.lower() == "groq":
-        return {"method": "function_calling"}
+        return {"method": "json_mode"}
     return {}
 
 
