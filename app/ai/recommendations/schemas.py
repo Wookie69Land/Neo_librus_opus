@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class RecommendationRequest(BaseModel):
@@ -73,9 +73,19 @@ class QueryUnderstanding(BaseModel):
     Produced by gemini-2.0-flash via ``with_structured_output``.
     """
 
+    model_config = ConfigDict(populate_by_name=True)
+
+    # Old cache hits may omit this field entirely — default to "" and let
+    # the model_validator below reconstruct it from keywords.
     normalized_intent: str = Field(
-        ..., description="A clean, concise English restatement of what the user is looking for."
+        default="", description="A clean, concise English restatement of what the user is looking for."
     )
+
+    @model_validator(mode="after")
+    def _fill_normalized_intent(self) -> QueryUnderstanding:
+        if not self.normalized_intent and self.keywords:
+            self.normalized_intent = " ".join(self.keywords)
+        return self
     keywords: list[str] = Field(
         ...,
         min_length=1,
@@ -100,9 +110,20 @@ class QueryUnderstanding(BaseModel):
 class ScoredCandidate(BaseModel):
     """A single book with a relevance score from Node 2."""
 
+    model_config = ConfigDict(populate_by_name=True)
+
     book_id: int
-    relevance_score: float = Field(..., ge=0.0, le=1.0)
-    reasoning: str = Field(..., description="One sentence explaining why this book fits the query.")
+    # Old cache: field was named "score"
+    relevance_score: float = Field(
+        ..., ge=0.0, le=1.0,
+        validation_alias=AliasChoices("relevance_score", "score"),
+    )
+    # Old cache: field was named "explanation"
+    reasoning: str = Field(
+        ...,
+        validation_alias=AliasChoices("reasoning", "explanation"),
+        description="One sentence explaining why this book fits the query.",
+    )
 
 
 class StatisticalAnalysis(BaseModel):
@@ -111,22 +132,52 @@ class StatisticalAnalysis(BaseModel):
     Produced by gemini-2.0-flash via ``with_structured_output``.
     """
 
+    model_config = ConfigDict(populate_by_name=True)
+
+    # Old cache: field was named "analysis"
     analysis_summary: str = Field(
-        ..., description="2–4 sentence narrative of what the database returned and what patterns stand out."
+        ...,
+        validation_alias=AliasChoices("analysis_summary", "analysis"),
+        description="2–4 sentence narrative of what the database returned and what patterns stand out.",
     )
+    # Old cache: field was named "scores"
     scored_candidates: list[ScoredCandidate] = Field(
-        ..., description="All candidates re-ranked by relevance to the user's query."
+        ...,
+        validation_alias=AliasChoices("scored_candidates", "scores"),
+        description="All candidates re-ranked by relevance to the user's query.",
     )
-    dominant_categories: list[str] = Field(..., description="Top category labels found among candidates.")
-    dominant_languages: list[str] = Field(..., description="Top language codes found among candidates.")
+    # Old cache: could be null or absent
+    dominant_categories: list[str] = Field(
+        default_factory=list,
+        description="Top category labels found among candidates.",
+    )
+    # Old cache: could be a bare string (e.g. "pol") or null
+    dominant_languages: list[str] = Field(
+        default_factory=list,
+        description="Top language codes found among candidates.",
+    )
+
+    @field_validator("dominant_categories", "dominant_languages", mode="before")
+    @classmethod
+    def _coerce_to_list(cls, v: object) -> list:
+        if v is None:
+            return []
+        if isinstance(v, str):
+            return [v]
+        return v  # type: ignore[return-value]
 
 
 class FinalRecommendation(BaseModel):
     """A final book recommendation with a user-facing explanation."""
 
+    model_config = ConfigDict(populate_by_name=True)
+
     book_id: int
+    # Old cache: field was named "explanation"
     why_recommended: str = Field(
-        ..., description="2–3 sentence, user-friendly explanation of why this book was selected."
+        ...,
+        validation_alias=AliasChoices("why_recommended", "explanation"),
+        description="2–3 sentence, user-friendly explanation of why this book was selected.",
     )
 
 
@@ -136,12 +187,23 @@ class FinalResponse(BaseModel):
     Produced by gemini-2.5-pro via ``with_structured_output``.
     """
 
+    model_config = ConfigDict(populate_by_name=True)
+
+    # Old cache: field was named "user_intent"
     query_interpretation: str = Field(
-        ..., description="One sentence summarising what the system understood the user to be looking for."
+        ...,
+        validation_alias=AliasChoices("query_interpretation", "user_intent"),
+        description="One sentence summarising what the system understood the user to be looking for.",
     )
+    # Old cache: field was named "recommended_books"
     recommendations: list[FinalRecommendation] = Field(
-        ..., description="Ordered list of book recommendations (highest relevance first)."
+        ...,
+        validation_alias=AliasChoices("recommendations", "recommended_books"),
+        description="Ordered list of book recommendations (highest relevance first).",
     )
+    # Old cache: field was named "library_catalogue"
     stats_narrative: str = Field(
-        ..., description="A short, friendly paragraph summarising what was found in the library catalogue."
+        ...,
+        validation_alias=AliasChoices("stats_narrative", "library_catalogue"),
+        description="A short, friendly paragraph summarising what was found in the library catalogue.",
     )
