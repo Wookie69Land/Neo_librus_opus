@@ -3,6 +3,12 @@
 Creates the correct LangChain chat model for each pipeline node based on
 Django settings. Supports Google Gemini and Groq (OpenAI-compatible API).
 
+Also configures a global LangChain LLM response cache backed by MongoDB
+(``MongoDBCache``). The cache intercepts every ``llm.ainvoke()`` call and
+returns a stored response when the exact ``(prompt, model, params)`` hash
+was seen before — eliminating redundant API round-trips and provider
+rate-limit errors without any changes in the node code.
+
 Usage::
 
     from app.ai.client import get_llm, LLMRole
@@ -13,10 +19,63 @@ Usage::
 """
 from __future__ import annotations
 
+import logging
 from enum import StrEnum
+from urllib.parse import quote_plus
 
 from django.conf import settings
 from langchain_core.language_models.chat_models import BaseChatModel
+
+logger = logging.getLogger(__name__)
+
+_llm_cache_initialized: bool = False
+
+
+def _setup_llm_cache() -> None:
+    """Configure the global LangChain LLM response cache using MongoDB.
+
+    ``MongoDBCache`` hashes ``(prompt, model, params)`` and serves the stored
+    response on a cache hit — every ``llm.ainvoke()`` call in any pipeline
+    node benefits automatically.
+
+    Silently skipped when:
+    * ``langchain-mongodb`` is not installed.
+    * ``MONGODB_HOST`` is empty or unset.
+    * The MongoDB connection cannot be established.
+    """
+    global _llm_cache_initialized
+    if _llm_cache_initialized:
+        return
+    _llm_cache_initialized = True  # set early so a failure doesn't retry on every call
+
+    host: str = getattr(settings, "MONGODB_HOST", "")
+    if not host:
+        return
+
+    try:
+        from langchain_core.globals import set_llm_cache  # noqa: PLC0415
+        from langchain_mongodb.cache import MongoDBCache  # noqa: PLC0415
+
+        user = quote_plus(settings.MONGODB_USER) if settings.MONGODB_USER else ""
+        password = quote_plus(settings.MONGODB_PASSWORD) if settings.MONGODB_PASSWORD else ""
+        port = settings.MONGODB_PORT
+        db = settings.MONGODB_DATABASE
+
+        if user and password:
+            uri = f"mongodb://{user}:{password}@{host}:{port}/?authSource={db}"
+        else:
+            uri = f"mongodb://{host}:{port}/"
+
+        set_llm_cache(
+            MongoDBCache(
+                connection_string=uri,
+                database_name=db,
+                collection_name="llm_cache",
+            )
+        )
+        logger.info("LangChain LLM response cache enabled (MongoDB)")
+    except Exception as exc:
+        logger.warning("MongoDB LLM cache setup failed (non-fatal): %s", exc)
 
 
 class LLMRole(StrEnum):
@@ -64,6 +123,8 @@ def get_llm(role: LLMRole) -> BaseChatModel:
     Model names per role come from the ``AI_MODEL_*`` settings so they can be
     overridden per environment without code changes.
 
+    The global LangChain LLM cache is configured on first call (idempotent).
+
     Args:
         role: Which pipeline node the model will serve.
 
@@ -74,6 +135,8 @@ def get_llm(role: LLMRole) -> BaseChatModel:
         ValueError: If ``settings.AI_PROVIDER`` is not a supported value.
         ValueError: If ``GEMINI_API_KEY`` is empty when using the gemini provider.
     """
+    _setup_llm_cache()
+
     provider: str = settings.AI_PROVIDER.lower()
     model_name: str = _model_for_role(role)
 

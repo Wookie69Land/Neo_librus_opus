@@ -49,8 +49,9 @@ dependencies = [
     "typing-inspection<=0.4.2",
     "annotated-types>=0.4",
     "whitenoise>=6.12.0",
-    # 🍃 MongoDB (AI observability & recommendation cache)
+    # 🍃 MongoDB (AI observability, recommendation cache, LLM response cache, embeddings)
     "motor>=3.3,<4",                # Async MongoDB driver (wraps PyMongo via asyncio)
+    "langchain-mongodb>=0.3",       # MongoDBCache, MongoDBAtlasVectorSearch, ChatMessageHistory
 ]
 # 🛠 Development Dependencies (Local & CI/CD)
 [dependency-groups]

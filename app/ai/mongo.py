@@ -2,6 +2,10 @@
 
 Responsibilities
 ----------------
+* **LLM response cache** — `langchain_mongodb.MongoDBCache` is configured in
+  `app/ai/client.py` and uses the ``llm_cache`` collection here.  A 7-day TTL
+  index on ``created_at`` auto-expires stale entries.
+
 * **Pipeline run logging** — every invocation of the LangGraph pipeline is
   persisted to the ``pipeline_runs`` collection with timing, token usage, and
   error details.  This provides a durable audit trail beyond the Redis 1-hour
@@ -11,33 +15,31 @@ Responsibilities
   of the normalised query parameters.  A MongoDB TTL index expires documents
   automatically after 24 hours so stale recommendations are never served.
 
+* **Book embeddings** (future) — ``book_embeddings`` collection stores float-array
+  embeddings for vector similarity search.  `find_similar_books()` computes cosine
+  similarity via an aggregation pipeline (exact KNN, no Atlas required).
+
 Collections
 -----------
-``pipeline_runs``
-    Append-only audit log.  Indexed on ``request_id`` and ``created_at``.
+``llm_cache``
+    Managed by `langchain_mongodb.MongoDBCache`.  7-day TTL on ``created_at``.
 
 ``recommendation_cache``
     Query-keyed cache with 24 h TTL index on ``created_at`` and a unique index
     on ``fingerprint`` for fast upserts.
 
-Usage::
+``pipeline_runs``
+    Append-only audit log.  Indexed on ``request_id`` and ``created_at``.
 
-    from app.ai.mongo import get_cached_result, cache_result, log_pipeline_run
-
-    # Inside an async ARQ task:
-    cached = await get_cached_result(raw_query, language, include_unavailable, max_results)
-    if cached:
-        return cached
-
-    result = await run_pipeline(...)
-    await cache_result(raw_query, language, include_unavailable, max_results, result)
-    await log_pipeline_run(request_id, raw_query, payload, result, timings, tokens, errors, total_s)
+``book_embeddings``
+    One document per book with ``book_id`` (unique) and ``embedding`` float array.
 """
 from __future__ import annotations
 
 import hashlib
 import json
 import logging
+import math
 from datetime import datetime, timezone
 from typing import Any
 
@@ -115,6 +117,20 @@ async def ensure_indexes() -> None:
         # pipeline_runs: lookup by request_id and time-range queries
         await db.pipeline_runs.create_index("request_id", background=True)
         await db.pipeline_runs.create_index("created_at", background=True)
+        # llm_cache: managed by langchain_mongodb.MongoDBCache; add 7-day TTL
+        await db.llm_cache.create_index(
+            "created_at",
+            expireAfterSeconds=604_800,  # 7 days
+            background=True,
+            name="ttl_llm_cache",
+        )
+        # book_embeddings: unique book_id for fast upserts
+        await db.book_embeddings.create_index(
+            "book_id",
+            unique=True,
+            background=True,
+            name="uq_book_id",
+        )
         _indexes_created = True
         logger.info("MongoDB indexes ensured")
     except Exception as exc:
@@ -256,6 +272,85 @@ async def log_pipeline_run(
         )
     except Exception as exc:
         logger.warning("MongoDB pipeline run logging failed (non-fatal): %s", exc)
+
+
+# ── Vector similarity search ───────────────────────────────────────────────────
+
+async def find_similar_books(query_vec: list[float], top_n: int = 50) -> list[int]:
+    """Return book_ids ordered by cosine similarity to ``query_vec``.
+
+    Uses an exact KNN aggregation pipeline (no Atlas / HNSW index required).
+    Acceptable for catalogs up to ~50 k books; upgrade to MongoDB Atlas
+    ``$vectorSearch`` or a Qdrant sidecar for ANN at larger scale.
+
+    Args:
+        query_vec: Embedding vector for the normalised user query.
+        top_n:     Maximum number of results to return.
+
+    Returns:
+        List of ``book_id`` ints sorted by descending cosine similarity.
+        Returns an empty list on error or if the collection is empty.
+    """
+    if not query_vec:
+        return []
+
+    q_norm = math.sqrt(sum(x * x for x in query_vec))
+    if q_norm == 0:
+        return []
+
+    try:
+        db = _get_db()
+        pipeline = [
+            {
+                "$addFields": {
+                    "dot": {
+                        "$reduce": {
+                            "input": {"$zip": {"inputs": ["$embedding", query_vec]}},
+                            "initialValue": 0,
+                            "in": {
+                                "$add": [
+                                    "$$value",
+                                    {
+                                        "$multiply": [
+                                            {"$arrayElemAt": ["$$this", 0]},
+                                            {"$arrayElemAt": ["$$this", 1]},
+                                        ]
+                                    },
+                                ]
+                            },
+                        }
+                    },
+                    "norm_doc": {
+                        "$sqrt": {
+                            "$reduce": {
+                                "input": "$embedding",
+                                "initialValue": 0,
+                                "in": {"$add": ["$$value", {"$multiply": ["$$this", "$$this"]}]},
+                            }
+                        }
+                    },
+                }
+            },
+            {
+                "$addFields": {
+                    "score": {
+                        "$cond": {
+                            "if": {"$gt": [{"$multiply": ["$norm_doc", q_norm]}, 0]},
+                            "then": {"$divide": ["$dot", {"$multiply": ["$norm_doc", q_norm]}]},
+                            "else": 0,
+                        }
+                    }
+                }
+            },
+            {"$sort": {"score": -1}},
+            {"$limit": top_n},
+            {"$project": {"book_id": 1, "_id": 0}},
+        ]
+        cursor = db.book_embeddings.aggregate(pipeline)
+        return [doc["book_id"] async for doc in cursor]
+    except Exception as exc:
+        logger.warning("find_similar_books failed (non-fatal): %s", exc)
+        return []
 
 
 # ── Lifecycle ──────────────────────────────────────────────────────────────────

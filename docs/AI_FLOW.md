@@ -4,7 +4,7 @@
 
 The AI recommendation feature allows authenticated users to submit a free-text query (e.g. *"cozy historical novels set in Poland"*) and receive a ranked, personalised list of books available in the library system.
 
-The pipeline is built with **LangGraph** (graph orchestration), **LangChain + Google Gemini** (LLM nodes), and **ARQ** (async background task queue with Redis). The API is non-blocking: the caller submits a job and polls for the result.
+The pipeline is built with **LangGraph** (graph orchestration), **LangChain** with Google Gemini or Groq (LLM nodes), **ARQ** (async background task queue with Redis), and **MongoDB** (result cache + audit log). The API is non-blocking: the caller submits a job and polls for the result.
 
 ---
 
@@ -23,9 +23,15 @@ Redis (job queue)
   ▼
 ARQ Worker ──► run_ai_recommendation_pipeline()
                 │
-                ▼
+                ├──► MongoDB recommendation_cache check (SHA-256 fingerprint)
+                │         cache hit → return immediately, skip all LLM nodes
+                │
+                ▼  cache miss
           LangGraph Pipeline
           ┌────────────────────────────────────────────────────────────┐
+          │  LLM nodes transparently use MongoDBCache (llm_cache,     │
+          │  7-day TTL). Same (prompt, model, params) hash → no API   │
+          │  call; eliminates redundant calls & rate-limit errors.    │
           │                                                            │
           │  [understand_query]  ──►  [fetch_candidates]              │
           │       (Node 1)                  (Node 2 – DB only)        │
@@ -42,6 +48,11 @@ ARQ Worker ──► run_ai_recommendation_pipeline()
                 ▼
           Result stored in Redis (TTL: 1 hour)
                 │
+                ├──► MongoDB recommendation_cache upserted (TTL: 24 h)
+                │
+                └──► MongoDB pipeline_runs appended (per-node latency,
+                          token counts, errors)
+                │
   │ GET /api/ai/recommendations/{request_id}
   ▼
 Client polls until status = "completed"
@@ -53,11 +64,12 @@ Client polls until status = "completed"
 
 ### Node 1 — `understand_query`
 
-| Property   | Value |
-|------------|-------|
-| **Model**  | `llama-3.3-70b-versatile` (env: `AI_MODEL_QUERY`) |
-| **Role**   | `LLMRole.QUERY` |
-| **Task**   | NLP — parse free text into structured search parameters |
+| Property          | Value |
+|-------------------|-------|
+| **Model**         | `llama-3.3-70b-versatile` (env: `AI_MODEL_QUERY`) |
+| **Role**          | `LLMRole.QUERY` |
+| **Task**          | NLP — parse free text into structured search parameters |
+| **Observability** | `node_timings["understand_query"]` (seconds), `token_usage["understand_query"]` `{input_tokens, output_tokens}` |
 
 **Input state fields:**
 - `raw_query` — the user's original free-text string
@@ -81,7 +93,7 @@ Client polls until status = "completed"
 | Property   | Value |
 |------------|-------|
 | **Model**  | None — pure database query |
-| **Task**   | Retrieve up to 25 book candidates from the DB matching extracted keywords |
+| **Task**   | Retrieve up to 50 book candidates from the DB matching extracted keywords |
 
 **Input state fields:**
 - `extracted_keywords`, `language_hint`, `audience`, `period_from`, `period_to`
@@ -89,7 +101,7 @@ Client polls until status = "completed"
 
 **Output state fields:**
 - `candidate_books` — list of book metadata dicts (title, authors, ISBN, language, category, availability per library)
-- `total_candidates` — count of candidates fetched (capped at 25)
+- `total_candidates` — count of candidates fetched (capped at 50)
 - `categories_found` / `languages_found` — unique values in the candidate set
 
 **Implementation:** `RecommendationRepository.fetch_candidates()` — uses Django ORM with full-text / keyword matching and `prefetch_related` for availability data.
@@ -98,11 +110,12 @@ Client polls until status = "completed"
 
 ### Node 3 — `analyze_statistics`
 
-| Property   | Value |
-|------------|-------|
-| **Model**  | `llama-3.3-70b-versatile` (env: `AI_MODEL_STATS`) |
-| **Role**   | `LLMRole.STATS` |
-| **Task**   | Analytical reasoning — score each candidate 0.0–1.0 for relevance |
+| Property          | Value |
+|-------------------|-------|
+| **Model**         | `llama-3.3-70b-versatile` (env: `AI_MODEL_STATS`) |
+| **Role**          | `LLMRole.STATS` |
+| **Task**          | Analytical reasoning — score each candidate 0.0–1.0 for relevance |
+| **Observability** | `node_timings["analyze_statistics"]` (seconds), `token_usage["analyze_statistics"]` `{input_tokens, output_tokens}` |
 
 **Input state fields:**
 - `normalized_intent` — the refined search intent from Node 1
@@ -122,11 +135,12 @@ Client polls until status = "completed"
 
 ### Node 4 — `compose_response`
 
-| Property   | Value |
-|------------|-------|
-| **Model**  | `llama-3.3-70b-versatile` (env: `AI_MODEL_RESPONSE`) |
-| **Role**   | `LLMRole.RESPONSE` |
-| **Task**   | Compose personalised, engaging recommendation text for each selected book |
+| Property          | Value |
+|-------------------|-------|
+| **Model**         | `llama-3.3-70b-versatile` (env: `AI_MODEL_RESPONSE`) |
+| **Role**          | `LLMRole.RESPONSE` |
+| **Task**          | Compose personalised, engaging recommendation text for each selected book |
+| **Observability** | `node_timings["compose_response"]` (seconds), `token_usage["compose_response"]` `{input_tokens, output_tokens}` |
 
 **Input state fields:**
 - `raw_query` — the original user query (for tone matching)
@@ -275,8 +289,22 @@ ARQ worker picks up job
         ▼
   Result dict serialised and stored in Redis (TTL 1 hour)
         │
+        ├──► MongoDB recommendation_cache upserted (TTL 24 h, keyed by query fingerprint)
+        └──► MongoDB pipeline_runs appended (tokens, timing, errors)
+        │
         ▼
 GET /api/ai/recommendations/{request_id}  →  200 + full response
+
+Note: two levels of caching protect every run.
+  1. recommendation_cache (pipeline level) — checked before the graph starts;
+     a hit skips every node entirely.
+  2. MongoDBCache / llm_cache (LLM call level) — transparent to nodes;
+     a matching (prompt, model, params) hash skips the provider API call.
+
+Each LLM node emits observability signals into state:
+  node_timings: {"understand_query": 1.23, "analyze_statistics": 2.11, "compose_response": 1.87}
+  token_usage:  {"understand_query": {"input_tokens": 420, "output_tokens": 180}, ...}
+Both are persisted to pipeline_runs for audit and performance analysis.
 ```
 
 ---
@@ -295,16 +323,55 @@ All AI settings are read from environment variables (see `app/core/settings/base
 | `AI_MODEL_RESPONSE` | `llama-3.3-70b-versatile` | Model for the response composition node |
 | `AI_TIMEOUT_SECONDS` | `60` | Per-node LLM call timeout |
 | `AI_MAX_TOKENS` | `2048` | Max output tokens per LLM call |
+| `MONGODB_HOST` | `localhost` | MongoDB server hostname |
+| `MONGODB_PORT` | `27017` | MongoDB server port |
+| `MONGODB_DATABASE` | `librariusAI_db` | Database name for AI collections |
+| `MONGODB_USER` | `""` | MongoDB username (optional) |
+| `MONGODB_PASSWORD` | `""` | MongoDB password (optional) |
 
 ---
 
-## Worker & Redis
+## Observability
+
+Every LLM node records two signals that are written to both the structured logger and the `pipeline_runs` MongoDB collection:
+
+| Signal | State field | Implementation |
+|--------|-------------|----------------|
+| Wall-clock latency | `node_timings[node_name]` | `time.monotonic()` around `llm.ainvoke()` — includes serialisation, network, and provider processing |
+| Token counts | `token_usage[node_name]` | `_TokenUsageCallback(BaseCallbackHandler)` — reads `usage_metadata` (Gemini) or `token_usage` (Groq/OpenAI-compat) from `LLMResult` |
+
+`fetch_candidates` (Node 2) has no LLM call and is not tracked.
+
+Log line emitted after each LLM node (structured, includes `request_id` in `extra`):
+```
+understand_query: latency=1.23s  in=420 out=180 tokens
+```
+
+Full per-run history is queryable via `pipeline_runs.node_timings` and `pipeline_runs.token_usage` in MongoDB.
+
+---
+
+## Worker, Redis & MongoDB
 
 The pipeline runs inside the **ARQ** background worker (`app/tasks/worker.py`).
 
 - **Job queue:** Redis (`REDIS_HOST`, `REDIS_PORT`, `REDIS_DATABASE` settings)
 - **Result TTL:** 1 hour (`WorkerSettings.keep_result = 3600`) — after which `GET` returns 404
 - **Redis pool:** Created fresh per API request (not cached at module level) to avoid event loop conflicts with Django's WSGI/ASGI thread-per-request model
+
+MongoDB is accessed via the **Motor** async client (`app/ai/mongo.py`) and serves two collections:
+
+| Collection | Purpose | Retention |
+|---|---|---|
+| `llm_cache` | `MongoDBCache` keyed on `(prompt, model, params)` SHA-256 — eliminates redundant provider API calls across all users; managed by `langchain_mongodb` | 7-day TTL index on `created_at` |
+| `recommendation_cache` | Full pipeline result keyed by `(query, language, include_unavailable, max_results)` SHA-256 fingerprint | 24 h TTL index on `created_at` |
+| `pipeline_runs` | Append-only audit log with per-node latency, token counts, and errors | Permanent (no TTL) |
+| `book_embeddings` | Float-array embeddings per book for cosine-similarity vector search (exact KNN, no Atlas required) | Permanent; stale docs re-embedded by `generate_book_embeddings` ARQ task |
+
+**Two independent caching layers** protect every pipeline run:
+
+1. **Recommendation cache** (pipeline level) — `run_ai_recommendation_pipeline` checks `recommendation_cache` before the graph is invoked. A hit returns the stored result without running any node.
+2. **LLM response cache** (`MongoDBCache`, call level) — configured in `app/ai/client.py` via `set_llm_cache()`. Transparent to all nodes: `llm.ainvoke()` checks `llm_cache` first; a matching hash skips the provider network call entirely. This is the primary protection against Groq/Gemini rate-limit errors.
 
 To run the worker locally:
 ```bash
@@ -348,7 +415,7 @@ The `error` field in the API response is populated from the ARQ job's exception 
 
 ## Known Limitations & Future Work
 
-- **Vector search:** Current candidate retrieval is keyword/ORM-based. Switching to embedding-based vector search (e.g. pgvector + `text-embedding-004`) would significantly improve semantic recall.
+- **Vector search:** Current candidate retrieval is keyword/ORM-based. Embedding-based search is planned via MongoDB's `book_embeddings` collection. `find_similar_books()` (exact cosine-similarity KNN, no Atlas required) is already implemented in `app/ai/mongo.py`; the remaining step is the `generate_book_embeddings` ARQ task and wiring `fetch_candidates` to embed the query and call it.
 - **Rate limiting:** No per-user rate limiting on the recommendation endpoint yet.
 - **Retry policy:** LLM calls have no automatic retry with backoff; a transient provider error will fail the node.
 - **Streaming:** The pipeline returns the full result in one batch. Streaming node-by-node progress to the client is not implemented.
